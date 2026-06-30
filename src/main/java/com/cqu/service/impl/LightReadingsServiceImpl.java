@@ -106,9 +106,33 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
     }
 
     @Override
-    public void reportReading(Long deviceId, BigDecimal lightIntensity) {
+    public String reportReading(Long deviceId, BigDecimal lightIntensity) {
         if (lightIntensity == null) {
             throw new RuntimeException("光照强度不能为空");
+        }
+
+        // 光照上报即视为心跳，刷新设备在线状态
+        Devices device = devicesMapper.selectById(deviceId);
+        if (device != null) {
+            boolean wasOffline = !"ONLINE".equals(device.getOnlineStatus());
+            device.setOnlineStatus("ONLINE");
+            device.setLastHeartbeatTime(LocalDateTime.now());
+            devicesMapper.updateById(device);
+
+            if (wasOffline) {
+                // 首次光照 → 设备上线，推送 /topic/device-online
+                Map<String, Object> onlineData = new LinkedHashMap<>();
+                onlineData.put("deviceId", deviceId);
+                onlineData.put("deviceName", device.getDeviceName());
+                onlineData.put("onlineStatus", "ONLINE");
+                onlineData.put("lastHeartbeatTime", device.getLastHeartbeatTime());
+                WebSocketMessage onlineMsg = WebSocketMessage.builder()
+                        .type("DEVICE_ONLINE_STATUS_CHANGED")
+                        .timestamp(LocalDateTime.now())
+                        .data(onlineData)
+                        .build();
+                messagingTemplate.convertAndSend("/topic/device-online", onlineMsg);
+            }
         }
 
         LightReadings reading = new LightReadings();
@@ -129,27 +153,27 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
                 .build();
         messagingTemplate.convertAndSend("/topic/light-readings", msg);
 
-        // 光照阈值自动开关灯判定
-        checkAndAutoControl(deviceId, lightIntensity);
+        // 光照阈值自动开关灯判定，返回下发给硬件的指令
+        return checkAndAutoControl(deviceId, lightIntensity);
     }
 
     /**
      * 光照阈值自动开关灯判定（事件驱动：光照数据来一条判一条）
      * 光照 < 开灯阈值 → 自动开灯；光照 > 关灯阈值 → 自动关灯
      */
-    private void checkAndAutoControl(Long deviceId, BigDecimal lightIntensity) {
+    private String checkAndAutoControl(Long deviceId, BigDecimal lightIntensity) {
         // 获取设备当前状态
         Devices device = devicesMapper.selectById(deviceId);
         if (device == null) {
             log.warn("自动开关判定：设备 {} 不存在", deviceId);
-            return;
+            return "NONE";
         }
 
         // 获取阈值配置
         ThresholdConfig config = thresholdConfigMapper.selectById(1L);
         if (config == null) {
             log.warn("自动开关判定：阈值配置不存在");
-            return;
+            return "NONE";
         }
 
         BigDecimal thresholdOn = config.getLightThresholdOn();
@@ -171,7 +195,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
         }
 
         if (targetStatus == null) {
-            return; // 无需操作
+            return "NONE"; // 无需操作
         }
 
         // 更新设备开关状态
@@ -196,6 +220,8 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
                 .data(data)
                 .build();
         messagingTemplate.convertAndSend("/topic/device-status", msg);
+
+        return command;
     }
 
     /**

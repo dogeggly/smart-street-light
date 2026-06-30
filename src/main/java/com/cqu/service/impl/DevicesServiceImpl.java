@@ -243,6 +243,45 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         }
     }
 
+    @Override
+    public String switchDevice(Long deviceId, String status) {
+        if (deviceId == null || status == null || status.isBlank()) {
+            throw new RuntimeException("设备ID和状态不能为空");
+        }
+        if (!"ON".equals(status) && !"OFF".equals(status)) {
+            throw new RuntimeException("状态值只能为 ON 或 OFF");
+        }
+
+        Devices device = this.getById(deviceId);
+        if (device == null) {
+            throw new RuntimeException("设备不存在");
+        }
+
+        String oldStatus = device.getStatus();
+        device.setStatus(status);
+        this.updateById(device);
+
+        // 记录控制日志（手动控制）
+        String command = "MANUAL_" + status;
+        controlLogsService.recordLog(deviceId, command, "SUCCESS", "MANUAL");
+
+        // WebSocket 推送设备状态变更
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("deviceId", deviceId);
+        data.put("deviceName", device.getDeviceName());
+        data.put("oldStatus", oldStatus);
+        data.put("status", status);
+        WebSocketMessage msg = WebSocketMessage.builder()
+                .type("DEVICE_STATUS_CHANGED")
+                .timestamp(LocalDateTime.now())
+                .data(data)
+                .build();
+        messagingTemplate.convertAndSend("/topic/device-status", msg);
+
+        // TODO: 通知硬件执行开关（MQTT/HTTP 通道预留）
+        return command;
+    }
+
     private DeviceVO toDeviceVO(Devices device) {
         return DeviceVO.builder()
                 .id(device.getId())

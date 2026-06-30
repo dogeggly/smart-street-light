@@ -347,3 +347,48 @@
 | **改动文件** | `KnowledgeChunksController.java`, `config/LlmConfig.java`（新增）, `vo/ChatRequest.java`（新增）, `application-secret.yml` |
 | **说明** | 调用 OpenAI 兼容的大模型 API 进行单轮对话。配置项在 `application-secret.yml` 的 `llm.*` 节点下（api-key / base-url / model）。使用 `RestTemplate` 发送 HTTP 请求，请求格式遵循 `/v1/chat/completions` 规范。当前版本无上下文记忆、无 RAG 检索，仅实现最简单的单轮调用。后续计划增加对话历史和知识库检索增强。 |
 
+---
+
+### 逻辑合并
+
+#### 35. 光照上报合并心跳刷新
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 硬件上报光照数据时（`POST /light-readings`），同时刷新设备在线状态 |
+| **改动文件** | `LightReadingsServiceImpl.java` |
+| **说明** | 光照数据上报即视为心跳，在 `reportReading()` 中同步刷新 `onlineStatus=ONLINE` 和 `lastHeartbeatTime`。若设备之前处于离线状态（首次光照），通过 WebSocket 主题 `/topic/device-online` 推送上线通知；后续持续在线则不再重复推送。硬件端可不再单独调用心跳接口，减少一次 HTTP 请求。心跳接口 `/devices/heartbeat` 保留，供无需上报光照的场景（如设备空闲保活）使用。 |
+
+---
+
+## 2026-07-01
+
+### 后端→硬件指令通道
+
+#### 36. 光照上报响应带回开关指令
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 硬件上报光照数据时（`POST /light-readings`），响应中返回自动判定结果 |
+| **改动文件** | `ILightReadingsService.java`, `LightReadingsServiceImpl.java`, `LightReadingsController.java` |
+| **说明** | `reportReading()` 返回值由 `void` 改为 `String`，返回 `AUTO_ON` / `AUTO_OFF` / `NONE`。控制器将指令放入响应体 `{"command": "xxx"}` 返回给硬件。硬件根据 command 执行开关动作，无需额外请求。`checkAndAutoControl()` 同步改为返回指令字符串。 |
+
+#### 37. 手动开关灯控制接口（预留硬件通知）
+
+| 项目 | 内容 |
+|------|------|
+| **请求方式** | `POST` |
+| **请求路径** | `/devices/{id}/switch` |
+| **请求体** | `{"status": "ON|OFF"}` |
+| **返回数据** | `{"code": 200, "data": {"command": "MANUAL_ON|MANUAL_OFF"}}` |
+| **改动文件** | `IDevicesService.java`, `DevicesServiceImpl.java`, `DevicesController.java` |
+| **说明** | 前端管理员手动控制路灯开关。后端更新 `devices.status`，记录控制日志（source=MANUAL, command=MANUAL_ON/MANUAL_OFF），通过 WebSocket 推送 `DEVICE_STATUS_CHANGED`。**硬件通知通道预留**——当前 HTTP 响应中返回 command，后续 MQTT 接入后可直接推送至设备。 |
+
+#### 38. 心跳上报响应格式统一
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 硬件发送心跳时（`POST /devices/heartbeat`），响应中统一带回 command 字段 |
+| **改动文件** | `DevicesController.java` |
+| **说明** | 心跳响应由 `"心跳接收成功"` 改为 `{"command": "NONE"}`，与光照上报接口响应格式对齐。硬件统一解析 command 字段即可，无需区分接口。当前心跳场景固定返回 NONE。 |
+

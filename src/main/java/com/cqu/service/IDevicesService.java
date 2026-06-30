@@ -54,10 +54,17 @@ public interface IDevicesService extends IService<Devices> {
 
     /**
      * 设备心跳上报（硬件定期发送心跳信号）
-     * <p>
-     * TODO: 超时离线检测逻辑（@Scheduled 定时扫描 lastHeartbeatTime 与 heartbeatTimeout 比较）
      *
      * @param deviceId 设备ID
      */
     void updateHeartbeat(Long deviceId);
+
+    /**
+     * 手动开关灯控制（前端下发 → 后端 → 硬件，硬件通知通道预留）
+     *
+     * @param deviceId 设备ID
+     * @param status   目标开关状态：ON / OFF
+     * @return 下发给硬件的指令：MANUAL_ON / MANUAL_OFF
+     */
+    String switchDevice(Long deviceId, String status);
 }

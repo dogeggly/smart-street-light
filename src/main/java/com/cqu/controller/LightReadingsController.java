@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -71,17 +72,20 @@ public class LightReadingsController {
     }
 
     /**
-     * 光照数据上报
+     * 光照数据上报（硬件调用，响应中带回开关指令）
      */
     @PostMapping
-    public Result<String> report(@RequestBody Map<String, Object> body) {
+    public Result<Map<String, String>> report(@RequestBody Map<String, Object> body) {
         Long deviceId = body.get("deviceId") != null
                 ? Long.valueOf(body.get("deviceId").toString()) : null;
         BigDecimal lightIntensity = body.get("lightIntensity") != null
                 ? new BigDecimal(body.get("lightIntensity").toString()) : null;
         log.info("光照数据上报: deviceId={}, lightIntensity={}", deviceId, lightIntensity);
-        lightReadingsService.reportReading(deviceId, lightIntensity);
-        return Result.success("上报成功");
+        String command = lightReadingsService.reportReading(deviceId, lightIntensity);
+
+        Map<String, String> response = new LinkedHashMap<>();
+        response.put("command", command);
+        return Result.success(response);
     }
 
     private LocalDateTime parseTime(String timeStr) {

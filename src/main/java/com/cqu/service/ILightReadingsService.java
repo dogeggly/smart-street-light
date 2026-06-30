@@ -34,7 +34,8 @@ public interface ILightReadingsService extends IService<LightReadings> {
     List<TrendPointVO> getTrend(Long deviceId, LocalDateTime startTime, LocalDateTime endTime);
 
     /**
-     * 光照数据上报
+     * 光照数据上报（含隐式心跳刷新 + 阈值自动判定）
+     * @return 下发给硬件的指令：AUTO_ON / AUTO_OFF / NONE
      */
-    void reportReading(Long deviceId, BigDecimal lightIntensity);
+    String reportReading(Long deviceId, BigDecimal lightIntensity);
 }

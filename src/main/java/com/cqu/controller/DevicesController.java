@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -100,14 +101,31 @@ public class DevicesController {
     }
 
     /**
-     * 设备心跳上报（硬件定期发送心跳信号）
+     * 设备心跳上报（硬件定期发送心跳信号，响应中带回指令）
      */
     @PostMapping("/heartbeat")
-    public Result<String> heartbeat(@RequestBody Map<String, Object> body) {
+    public Result<Map<String, String>> heartbeat(@RequestBody Map<String, Object> body) {
         Long deviceId = body.get("deviceId") != null
                 ? Long.valueOf(body.get("deviceId").toString()) : null;
         log.info("设备心跳上报: deviceId={}", deviceId);
         devicesService.updateHeartbeat(deviceId);
-        return Result.success("心跳接收成功");
+
+        Map<String, String> response = new LinkedHashMap<>();
+        response.put("command", "NONE");
+        return Result.success(response);
+    }
+
+    /**
+     * 手动开关灯控制（前端下发 → 后端更新状态 → 预留硬件通知通道）
+     */
+    @PostMapping("/{id}/switch")
+    public Result<Map<String, String>> switchDevice(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        String status = (String) body.get("status");
+        log.info("手动开关灯: deviceId={}, status={}", id, status);
+        String command = devicesService.switchDevice(id, status);
+
+        Map<String, String> response = new LinkedHashMap<>();
+        response.put("command", command);
+        return Result.success(response);
     }
 }
