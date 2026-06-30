@@ -1,11 +1,13 @@
 package com.cqu.controller;
 
 import com.cqu.service.IAlarmLogsService;
-import com.cqu.utils.Result;
+import com.cqu.vo.Result;
 import com.cqu.vo.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -59,5 +61,19 @@ public class AlarmLogsController {
         log.info("查询告警统计");
         AlarmStatisticsVO statistics = alarmLogsService.getStatistics();
         return Result.success(statistics);
+    }
+
+    /**
+     * 创建告警（硬件/系统触发，如设备离线、光照异常）
+     */
+    @PostMapping
+    public Result<String> create(@RequestBody Map<String, Object> body) {
+        Long deviceId = body.get("deviceId") != null
+                ? Long.valueOf(body.get("deviceId").toString()) : null;
+        String alarmType = (String) body.get("alarmType");
+        String message = (String) body.get("message");
+        log.info("创建告警: deviceId={}, alarmType={}, message={}", deviceId, alarmType, message);
+        alarmLogsService.createAlarm(deviceId, alarmType, message);
+        return Result.success("创建成功");
     }
 }

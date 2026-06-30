@@ -33,4 +33,13 @@ public interface IAlarmLogsService extends IService<AlarmLogs> {
      * 告警统计（活跃总数 + 按类型分组）
      */
     AlarmStatisticsVO getStatistics();
+
+    /**
+     * 创建告警（由硬件/系统触发，如设备离线、光照异常）
+     *
+     * @param deviceId  关联设备ID
+     * @param alarmType 告警类型（如 OFFLINE、LIGHT_ABNORMAL）
+     * @param message   告警详情描述
+     */
+    void createAlarm(Long deviceId, String alarmType, String message);
 }

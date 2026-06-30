@@ -1,5 +1,7 @@
 # 智慧路灯管理平台 — API 接口文档
 
+- 2.4/2.5/3.4/4.5 接口为硬件/MQTT 网关调用，其他接口为前端调用
+
 ## 通用约定
 
 | 项目 | 说明 |
@@ -133,7 +135,40 @@
 
 ---
 
-### 2.4 编辑设备
+### 2.4 硬件状态回传
+
+| 项目 | 内容 |
+|------|------|
+| **URL** | `POST /devices/status-callback` |
+| **请求体** | `{"deviceId": long, "status": "string"}` |
+| **成功返回** | `{"code": 200, "data": "状态更新成功"}` |
+
+| 请求字段 | 类型 | 必填 | 说明 |
+|----------|------|------|------|
+| deviceId | long | 是 | 设备ID |
+| status | string | 是 | 开关状态：`ON` / `OFF` |
+
+**作用**：硬件执行开关指令后回传最终状态，更新设备开关状态字段，自动记录控制日志（source=AUTO）。状态变更后通过 WebSocket 推送 `DEVICE_STATUS_CHANGED`。
+
+---
+
+### 2.5 设备心跳上报
+
+| 项目 | 内容 |
+|------|------|
+| **URL** | `POST /devices/heartbeat` |
+| **请求体** | `{"deviceId": long}` |
+| **成功返回** | `{"code": 200, "data": "心跳接收成功"}` |
+
+| 请求字段 | 类型 | 必填 | 说明 |
+|----------|------|------|------|
+| deviceId | long | 是 | 设备ID |
+
+**作用**：硬件定期发送心跳信号，更新 `lastHeartbeatTime` 和在线状态为 `ONLINE`。若设备此前离线，通过 WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。服务端另有 `@Scheduled` 定时任务（每 30 秒）扫描超时设备自动标记离线并创建告警。
+
+---
+
+### 2.6 编辑设备
 
 | 项目 | 内容 |
 |------|------|
@@ -153,7 +188,7 @@
 
 ---
 
-### 2.5 删除设备
+### 2.7 删除设备
 
 | 项目 | 内容 |
 |------|------|
@@ -168,7 +203,7 @@
 
 ---
 
-### 2.6 设备概览统计
+### 2.8 设备概览统计
 
 | 项目 | 内容 |
 |------|------|
@@ -272,7 +307,7 @@
 | deviceId | long | 是 | 设备ID |
 | lightIntensity | number | 是 | 光照强度值 |
 
-**作用**：接收硬件/MQTT 网关上报的光照数据，写入光照记录表。
+**作用**：接收硬件/MQTT 网关上报的光照数据，写入光照记录表。写入后自动执行阈值判定——光照 < 开灯阈值则自动开灯，光照 > 关灯阈值则自动关灯（事件驱动，来一条判一条）。
 
 ---
 
@@ -356,6 +391,24 @@
 
 ---
 
+### 4.5 创建告警
+
+| 项目 | 内容 |
+|------|------|
+| **URL** | `POST /alarm-logs` |
+| **请求体** | `{"deviceId": long, "alarmType": "string", "message": "string"}` |
+| **成功返回** | `{"code": 200, "data": "创建成功"}` |
+
+| 请求字段 | 类型 | 必填 | 说明 |
+|----------|------|------|------|
+| deviceId | long | 是 | 关联设备ID |
+| alarmType | string | 是 | 告警类型（如 `OFFLINE`、`LIGHT_ABNORMAL`） |
+| message | string | 否 | 告警详情描述 |
+
+**作用**：由硬件/系统调用，创建一条告警记录（status=ACTIVE）。创建成功后通过 WebSocket 推送 `ALARM_CREATED`。
+
+---
+
 ## 5. 阈值配置 — `/threshold-config`
 
 ### 5.1 获取阈值
@@ -392,6 +445,86 @@
 | heartbeatTimeout | int | 是 | 心跳超时秒数，必须 > 0 |
 
 **作用**：修改光照自动开关阈值和心跳超时参数。
+
+---
+
+## 6. 控制日志 — `/control-logs`
+
+> `control_logs` 为操作审计日志表，记录所有非幂等（状态变更）操作。command 枚举：`ADD_DEVICE` / `UPDATE_DEVICE` / `DELETE_DEVICE` / `RESOLVE_ALARM` / `UPDATE_THRESHOLD` / `STATUS_CALLBACK` / `AUTO_ON` / `AUTO_OFF`。
+
+### 6.1 控制日志分页列表
+
+| 项目 | 内容 |
+|------|------|
+| **URL** | `GET /control-logs` |
+| **成功返回** | `{"code": 200, "data": {"total": long, "records": [ControlLogVO]}}` |
+
+| 请求参数 | 类型 | 必填 | 默认值 | 说明 |
+|----------|------|------|--------|------|
+| page | int | 是 | 1 | 页码 |
+| pageSize | int | 是 | 10 | 每页条数 |
+| deviceId | long | 否 | — | 设备ID |
+| command | string | 否 | — | 操作类型 |
+| operatorId | long | 否 | — | 操作人ID |
+
+| 返回字段 (ControlLogVO) | 类型 | 说明 |
+|-------------------------|------|------|
+| id | long | 日志ID |
+| deviceId | long | 设备ID（null 表示无关联设备） |
+| deviceName | string | 设备名称 |
+| operatorId | long | 操作人ID |
+| operatorName | string | 操作人用户名 |
+| command | string | 操作类型 |
+| source | string | 来源（固定 MANUAL） |
+| result | string | 结果：SUCCESS / FAIL |
+| createdAt | string | 操作时间 |
+
+**作用**：分页查询操作审计日志，支持按设备、操作类型、操作人筛选，按时间倒序。
+
+---
+
+### 6.2 控制日志详情
+
+| 项目 | 内容 |
+|------|------|
+| **URL** | `GET /control-logs/{id}` |
+| **成功返回** | `{"code": 200, "data": ControlLogVO}` |
+
+| 路径参数 | 类型 | 说明 |
+|----------|------|------|
+| id | long | 日志ID |
+
+**作用**：查看单条操作日志的完整信息（返回结构与 6.1 相同）。
+
+---
+
+---
+
+## 7. WebSocket 实时推送 — `/ws`
+
+### 7.1 连接方式
+
+| 项目 | 内容 |
+|------|------|
+| **协议** | STOMP over WebSocket |
+| **端点** | `ws://localhost:8080/ws?token={jwt_token}` |
+| **认证** | 握手阶段通过 URL 参数 `token` 传递 JWT，由 `WebSocketAuthInterceptor` 校验 |
+| **Broker 前缀** | `/topic`（广播）、`/queue`（点对点） |
+| **消息格式** | `{"type": "string", "timestamp": "yyyy-MM-dd HH:mm:ss", "data": {...}}` |
+
+### 7.2 推送主题
+
+| 主题 | 消息类型 | 触发时机 | 推送数据 |
+|------|----------|----------|----------|
+| `/topic/light-readings` | `LIGHT_REPORTED` | 硬件上报光照数据（`POST /light-readings`） | `LatestLightVO` |
+| `/topic/device-status` | `DEVICE_STATUS_CHANGED` | 硬件回传开关状态（`POST /devices/status-callback`） | `{deviceId, deviceName, oldStatus, status}` |
+| `/topic/device-online` | `DEVICE_ONLINE_STATUS_CHANGED` | 设备心跳恢复上线（`POST /devices/heartbeat`） | `{deviceId, deviceName, onlineStatus, lastHeartbeatTime}` |
+| `/topic/alarms` | `ALARM_CREATED` | 系统创建告警（`POST /alarm-logs`） | `AlarmLogVO` |
+
+### 7.3 设计原则
+
+- **硬件侧变更 → WebSocket 推送前端**：前端是被动接收方，不知道硬件何时上报/回传，通过订阅主题实时获取
+- **前端用户操作 → HTTP 请求-响应**：前端主动发起，自己知道结果，无需额外推送
 
 ---
 

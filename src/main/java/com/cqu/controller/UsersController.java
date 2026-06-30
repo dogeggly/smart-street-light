@@ -3,7 +3,7 @@ package com.cqu.controller;
 import com.cqu.entity.Users;
 import com.cqu.service.IUsersService;
 import com.cqu.utils.JwtProperties;
-import com.cqu.utils.Result;
+import com.cqu.vo.Result;
 import com.cqu.vo.LoginVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

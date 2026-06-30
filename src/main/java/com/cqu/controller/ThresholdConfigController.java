@@ -1,7 +1,7 @@
 package com.cqu.controller;
 
 import com.cqu.service.IThresholdConfigService;
-import com.cqu.utils.Result;
+import com.cqu.vo.Result;
 import com.cqu.vo.ThresholdConfigVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

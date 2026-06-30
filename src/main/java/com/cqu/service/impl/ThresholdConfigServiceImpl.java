@@ -2,9 +2,11 @@ package com.cqu.service.impl;
 
 import com.cqu.entity.ThresholdConfig;
 import com.cqu.mapper.ThresholdConfigMapper;
+import com.cqu.service.IControlLogsService;
 import com.cqu.service.IThresholdConfigService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cqu.vo.ThresholdConfigVO;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -23,6 +25,9 @@ public class ThresholdConfigServiceImpl extends ServiceImpl<ThresholdConfigMappe
 
     /** 阈值配置固定ID */
     private static final Long CONFIG_ID = 1L;
+
+    @Autowired
+    private IControlLogsService controlLogsService;
 
     @Override
     public ThresholdConfigVO getConfig() {
@@ -62,5 +67,6 @@ public class ThresholdConfigServiceImpl extends ServiceImpl<ThresholdConfigMappe
         config.setHeartbeatTimeout(heartbeatTimeout);
         config.setUpdatedAt(LocalDateTime.now());
         this.updateById(config);
+        controlLogsService.recordLog(null, "UPDATE_THRESHOLD", "SUCCESS");
     }
 }

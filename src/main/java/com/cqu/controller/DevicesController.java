@@ -1,7 +1,7 @@
 package com.cqu.controller;
 
 import com.cqu.service.IDevicesService;
-import com.cqu.utils.Result;
+import com.cqu.vo.Result;
 import com.cqu.vo.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,5 +84,30 @@ public class DevicesController {
         log.info("查询设备概览统计");
         DeviceStatisticsVO statistics = devicesService.getStatistics();
         return Result.success(statistics);
+    }
+
+    /**
+     * 硬件状态回传（硬件执行开关指令后回传最终状态）
+     */
+    @PostMapping("/status-callback")
+    public Result<String> statusCallback(@RequestBody Map<String, Object> body) {
+        Long deviceId = body.get("deviceId") != null
+                ? Long.valueOf(body.get("deviceId").toString()) : null;
+        String status = (String) body.get("status");
+        log.info("硬件状态回传: deviceId={}, status={}", deviceId, status);
+        devicesService.updateDeviceStatus(deviceId, status);
+        return Result.success("状态更新成功");
+    }
+
+    /**
+     * 设备心跳上报（硬件定期发送心跳信号）
+     */
+    @PostMapping("/heartbeat")
+    public Result<String> heartbeat(@RequestBody Map<String, Object> body) {
+        Long deviceId = body.get("deviceId") != null
+                ? Long.valueOf(body.get("deviceId").toString()) : null;
+        log.info("设备心跳上报: deviceId={}", deviceId);
+        devicesService.updateHeartbeat(deviceId);
+        return Result.success("心跳接收成功");
     }
 }

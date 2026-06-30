@@ -214,3 +214,121 @@
 | **改动文件** | `ThresholdConfigController.java`, `IThresholdConfigService.java`, `ThresholdConfigServiceImpl.java` |
 | **说明** | 校验：开灯阈值 < 关灯阈值，心跳超时 > 0。参数为空或校验失败返回 500。 |
 
+---
+
+### 控制日志 — `/control-logs`
+
+#### 23. 控制日志分页列表 — `GET /control-logs`
+
+| 项目 | 内容 |
+|------|------|
+| **请求参数** | `page`(必填, 默认1), `pageSize`(必填, 默认10), `deviceId`(可选), `command`(可选), `operatorId`(可选) |
+| **返回数据** | `{"code": 200, "data": {"total": long, "records": [ControlLogVO]}}` |
+| **改动文件** | `ControlLogsController.java`, `IControlLogsService.java`, `ControlLogsServiceImpl.java` |
+| **说明** | 按操作时间倒序排列。`ControlLogVO` 中携带 `deviceName` 和 `operatorName`。 |
+
+#### 24. 控制日志详情 — `GET /control-logs/{id}`
+
+| 项目 | 内容 |
+|------|------|
+| **返回数据** | `{"code": 200, "data": ControlLogVO}` |
+| **改动文件** | `ControlLogsController.java`, `IControlLogsService.java`, `ControlLogsServiceImpl.java` |
+| **说明** | 查看单条操作日志完整信息。 |
+
+#### 25. 操作审计日志回填
+
+| 项目 | 内容 |
+|------|------|
+| **改动文件** | `DevicesServiceImpl.java`, `AlarmLogsServiceImpl.java`, `ThresholdConfigServiceImpl.java` |
+| **说明** | 在设备增删改、解决告警、更新阈值等非幂等操作中，调用 `IControlLogsService.recordLog()` 写入审计日志。command 枚举：`ADD_DEVICE` / `UPDATE_DEVICE` / `DELETE_DEVICE` / `RESOLVE_ALARM` / `UPDATE_THRESHOLD`。operator_id 通过 `UserHolder.getCurrent()` 获取。 |
+
+#### 26. 控制日志增强 — 支持 source 参数
+
+| 项目 | 内容 |
+|------|------|
+| **请求方式** | 内部调用 |
+| **改动文件** | `IControlLogsService.java`, `ControlLogsServiceImpl.java` |
+| **说明** | 新增 `recordLog(deviceId, command, result, source)` 重载方法，支持指定操作来源（MANUAL / AUTO）。原 `recordLog` 方法委托到新方法，source 默认 MANUAL。硬件回传/系统自动操作的日志使用 source=AUTO。 |
+
+---
+
+### WebSocket 实时推送
+
+#### 27. WebSocket 基础设施搭建
+
+| 项目 | 内容 |
+|------|------|
+| **改动文件** | `pom.xml`, `config/WebSocketConfig.java`（新增）, `config/WebSocketAuthInterceptor.java`（新增）, `vo/WebSocketMessage.java`（新增） |
+| **说明** | 引入 `spring-boot-starter-websocket` 依赖。基于 STOMP over WebSocket 协议，Broker 前缀 `/topic`/`/queue`，应用前缀 `/app`。STOMP 端点 `/ws`，握手阶段从 URL 参数 `?token=xxx` 校验 JWT。统一消息信封 `WebSocketMessage`（type, timestamp, data）。 |
+
+#### 28. 光照数据上报 → WebSocket 推送
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 硬件上报光照数据时（`POST /light-readings`） |
+| **推送主题** | `/topic/light-readings` |
+| **推送数据** | `{"type": "LIGHT_REPORTED", "timestamp": "...", "data": LatestLightVO}` |
+| **改动文件** | `LightReadingsServiceImpl.java` |
+| **说明** | 光照数据上报保存成功后，通过 `SimpMessagingTemplate.convertAndSend()` 推送到所有订阅 `/topic/light-readings` 的前端客户端。属于硬件侧变更被动通知。 |
+
+---
+
+### 告警管理补充
+
+#### 29. 创建告警 — `POST /alarm-logs`
+
+| 项目 | 内容 |
+|------|------|
+| **请求方式** | `POST` |
+| **请求路径** | `/alarm-logs` |
+| **请求体** | `{"deviceId": long, "alarmType": "string", "message": "string"}` |
+| **返回数据** | `{"code": 200, "data": "创建成功"}` |
+| **改动文件** | `AlarmLogsController.java`, `IAlarmLogsService.java`, `AlarmLogsServiceImpl.java` |
+| **说明** | 创建告警记录（status=ACTIVE），供硬件/系统调用（如 MQTT 网关检测到设备离线时调用）。创建成功后通过 WebSocket 主题 `/topic/alarms` 推送 `ALARM_CREATED` 消息（数据体为 `AlarmLogVO`），前端可实时收到告警通知。 |
+
+---
+
+### 设备管理补充
+
+#### 30. 硬件状态回传 — `POST /devices/status-callback`
+
+| 项目 | 内容 |
+|------|------|
+| **请求方式** | `POST` |
+| **请求路径** | `/devices/status-callback` |
+| **请求体** | `{"deviceId": long, "status": "ON|OFF"}` |
+| **返回数据** | `{"code": 200, "data": "状态更新成功"}` |
+| **改动文件** | `DevicesController.java`, `IDevicesService.java`, `DevicesServiceImpl.java` |
+| **说明** | 硬件执行开关指令后回传最终状态，更新 `devices.status` 字段，自动记录控制日志（command=`STATUS_CALLBACK`, source=AUTO）。状态变更后通过 WebSocket 主题 `/topic/device-status` 推送 `DEVICE_STATUS_CHANGED` 消息（含 oldStatus 和 newStatus）。 |
+
+#### 31. 设备心跳上报 — `POST /devices/heartbeat`
+
+| 项目 | 内容 |
+|------|------|
+| **请求方式** | `POST` |
+| **请求路径** | `/devices/heartbeat` |
+| **请求体** | `{"deviceId": long}` |
+| **返回数据** | `{"code": 200, "data": "心跳接收成功"}` |
+| **改动文件** | `DevicesController.java`, `IDevicesService.java`, `DevicesServiceImpl.java` |
+| **说明** | 硬件定期发送心跳信号，更新 `lastHeartbeatTime` 和 `onlineStatus=ONLINE`。若设备之前处于离线状态，通过 WebSocket 主题 `/topic/device-online` 推送 `DEVICE_ONLINE_STATUS_CHANGED` 消息。 |
+
+---
+
+### 自动化控制
+
+#### 32. 光照阈值自动开关灯 — 事件驱动
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | 硬件上报光照数据时（`POST /light-readings`），在 `reportReading()` 中实时判定 |
+| **改动文件** | `LightReadingsServiceImpl.java` |
+| **说明** | 光照数据上报后即时比较阈值：光照 < `lightThresholdOn` 且设备 OFF → 自动开灯（command=`AUTO_ON`）；光照 > `lightThresholdOff` 且设备 ON → 自动关灯（command=`AUTO_OFF`）。操作来源 source=`AUTO`，通过 WebSocket 主题 `/topic/device-status` 推送 `DEVICE_STATUS_CHANGED`。**事件驱动**，来一条数据判一条，不走定时轮询。 |
+
+#### 33. 心跳超时离线检测 — 定时扫描
+
+| 项目 | 内容 |
+|------|------|
+| **触发时机** | `@Scheduled(fixedRate=30000)` 每 30 秒自动执行 |
+| **改动文件** | `schedule/HeartbeatCheckTask.java`（新增）, `SmartStreetLightApplication.java`（添加 `@EnableScheduling`） |
+| **说明** | 扫描所有 `onlineStatus=ONLINE` 的设备，若 `lastHeartbeatTime + heartbeatTimeout秒 < now`，则标记为 `OFFLINE`，自动创建 `OFFLINE` 类型告警，并通过 WebSocket 主题 `/topic/device-online` 推送 `DEVICE_ONLINE_STATUS_CHANGED`。从未收到心跳的设备也会被判定离线。 |
+

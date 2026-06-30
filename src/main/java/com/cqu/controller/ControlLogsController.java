@@ -1,20 +1,44 @@
 package com.cqu.controller;
 
+import com.cqu.service.IControlLogsService;
+import com.cqu.vo.Result;
+import com.cqu.vo.ControlLogVO;
+import com.cqu.vo.PageResult;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
 
-import org.springframework.web.bind.annotation.RequestMapping;
-
-import org.springframework.web.bind.annotation.RestController;
-
-/**
- * <p>
- * 路灯控制指令日志 前端控制器
- * </p>
- *
- * @author 
- * @since 2026-06-29
- */
+@Slf4j
 @RestController
 @RequestMapping("/control-logs")
 public class ControlLogsController {
 
+    @Autowired
+    private IControlLogsService controlLogsService;
+
+    /**
+     * 控制日志分页列表
+     */
+    @GetMapping
+    public Result<PageResult<ControlLogVO>> list(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) Long deviceId,
+            @RequestParam(required = false) String command,
+            @RequestParam(required = false) Long operatorId) {
+        log.info("查询控制日志: page={}, pageSize={}, deviceId={}, command={}, operatorId={}",
+                page, pageSize, deviceId, command, operatorId);
+        PageResult<ControlLogVO> result = controlLogsService.pageLogs(page, pageSize, deviceId, command, operatorId);
+        return Result.success(result);
+    }
+
+    /**
+     * 控制日志详情
+     */
+    @GetMapping("/{id}")
+    public Result<ControlLogVO> detail(@PathVariable Long id) {
+        log.info("查询控制日志详情: id={}", id);
+        ControlLogVO detail = controlLogsService.getDetail(id);
+        return Result.success(detail);
+    }
 }

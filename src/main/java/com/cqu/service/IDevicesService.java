@@ -43,4 +43,21 @@ public interface IDevicesService extends IService<Devices> {
      * 设备概览统计
      */
     DeviceStatisticsVO getStatistics();
+
+    /**
+     * 硬件状态回传（硬件执行开关指令后回传最终状态）
+     *
+     * @param deviceId 设备ID
+     * @param status   开关状态：ON / OFF
+     */
+    void updateDeviceStatus(Long deviceId, String status);
+
+    /**
+     * 设备心跳上报（硬件定期发送心跳信号）
+     * <p>
+     * TODO: 超时离线检测逻辑（@Scheduled 定时扫描 lastHeartbeatTime 与 heartbeatTimeout 比较）
+     *
+     * @param deviceId 设备ID
+     */
+    void updateHeartbeat(Long deviceId);
 }

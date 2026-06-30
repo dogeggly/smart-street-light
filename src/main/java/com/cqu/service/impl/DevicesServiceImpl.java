@@ -8,14 +8,19 @@ import com.cqu.entity.LightReadings;
 import com.cqu.mapper.AlarmLogsMapper;
 import com.cqu.mapper.DevicesMapper;
 import com.cqu.mapper.LightReadingsMapper;
+import com.cqu.service.IControlLogsService;
 import com.cqu.service.IDevicesService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cqu.vo.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +39,12 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
     @Autowired
     private AlarmLogsMapper alarmLogsMapper;
+
+    @Autowired
+    private IControlLogsService controlLogsService;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @Override
     public PageResult<DeviceVO> pageDevices(int page, int pageSize, String deviceName, String status, String onlineStatus) {
@@ -105,6 +116,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         device.setDeviceName(deviceName);
         device.setDeviceSn(deviceSn);
         this.save(device);
+        controlLogsService.recordLog(device.getId(), "ADD_DEVICE", "SUCCESS");
     }
 
     @Override
@@ -120,6 +132,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
         device.setDeviceName(deviceName);
         this.updateById(device);
+        controlLogsService.recordLog(id, "UPDATE_DEVICE", "SUCCESS");
     }
 
     @Override
@@ -140,6 +153,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         alarmLogsMapper.delete(alarmWrapper);
 
         this.removeById(id);
+        controlLogsService.recordLog(id, "DELETE_DEVICE", "SUCCESS");
     }
 
     @Override
@@ -157,6 +171,76 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                 .onCount(onCount)
                 .offCount(offCount)
                 .build();
+    }
+
+    @Override
+    public void updateDeviceStatus(Long deviceId, String status) {
+        if (deviceId == null || status == null || status.isBlank()) {
+            throw new RuntimeException("设备ID和状态不能为空");
+        }
+        if (!"ON".equals(status) && !"OFF".equals(status)) {
+            throw new RuntimeException("状态值只能为 ON 或 OFF");
+        }
+
+        Devices device = this.getById(deviceId);
+        if (device == null) {
+            throw new RuntimeException("设备不存在");
+        }
+
+        String oldStatus = device.getStatus();
+        device.setStatus(status);
+        this.updateById(device);
+
+        // 记录控制日志（硬件回传，来源为 AUTO）
+        controlLogsService.recordLog(deviceId, "STATUS_CALLBACK", "SUCCESS", "AUTO");
+
+        // WebSocket 推送设备状态变更
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("deviceId", deviceId);
+        data.put("deviceName", device.getDeviceName());
+        data.put("oldStatus", oldStatus);
+        data.put("status", status);
+        WebSocketMessage msg = WebSocketMessage.builder()
+                .type("DEVICE_STATUS_CHANGED")
+                .timestamp(LocalDateTime.now())
+                .data(data)
+                .build();
+        messagingTemplate.convertAndSend("/topic/device-status", msg);
+    }
+
+    @Override
+    public void updateHeartbeat(Long deviceId) {
+        if (deviceId == null) {
+            throw new RuntimeException("设备ID不能为空");
+        }
+
+        Devices device = this.getById(deviceId);
+        if (device == null) {
+            throw new RuntimeException("设备不存在");
+        }
+
+        boolean wasOffline = !"ONLINE".equals(device.getOnlineStatus());
+
+        device.setOnlineStatus("ONLINE");
+        device.setLastHeartbeatTime(LocalDateTime.now());
+        this.updateById(device);
+
+        // 超时离线检测已由 HeartbeatCheckTask 定时任务实现（每30秒扫描）
+
+        // WebSocket 推送在线状态变更（仅状态变更时推送：从离线恢复到在线）
+        if (wasOffline) {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("deviceId", deviceId);
+            data.put("deviceName", device.getDeviceName());
+            data.put("onlineStatus", "ONLINE");
+            data.put("lastHeartbeatTime", device.getLastHeartbeatTime());
+            WebSocketMessage msg = WebSocketMessage.builder()
+                    .type("DEVICE_ONLINE_STATUS_CHANGED")
+                    .timestamp(LocalDateTime.now())
+                    .data(data)
+                    .build();
+            messagingTemplate.convertAndSend("/topic/device-online", msg);
+        }
     }
 
     private DeviceVO toDeviceVO(Devices device) {

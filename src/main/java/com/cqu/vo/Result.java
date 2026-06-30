@@ -1,4 +1,4 @@
-package com.cqu.utils;
+package com.cqu.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

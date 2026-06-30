@@ -7,9 +7,11 @@ import com.cqu.entity.Devices;
 import com.cqu.mapper.AlarmLogsMapper;
 import com.cqu.mapper.DevicesMapper;
 import com.cqu.service.IAlarmLogsService;
+import com.cqu.service.IControlLogsService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cqu.vo.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -30,6 +32,12 @@ public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs
 
     @Autowired
     private DevicesMapper devicesMapper;
+
+    @Autowired
+    private IControlLogsService controlLogsService;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @Override
     public PageResult<AlarmLogVO> pageAlarms(int page, int pageSize, Long deviceId, String alarmType, String status) {
@@ -80,6 +88,7 @@ public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs
         alarm.setStatus("RESOLVED");
         alarm.setResolvedAt(LocalDateTime.now());
         this.updateById(alarm);
+        controlLogsService.recordLog(alarm.getDeviceId(), "RESOLVE_ALARM", "SUCCESS");
     }
 
     @Override
@@ -107,6 +116,35 @@ public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs
                 .activeCount(activeCount)
                 .byType(byType)
                 .build();
+    }
+
+    @Override
+    public void createAlarm(Long deviceId, String alarmType, String message) {
+        if (deviceId == null || alarmType == null || alarmType.isBlank()) {
+            throw new RuntimeException("设备ID和告警类型不能为空");
+        }
+
+        AlarmLogs alarm = new AlarmLogs();
+        alarm.setDeviceId(deviceId);
+        alarm.setAlarmType(alarmType);
+        alarm.setMessage(message);
+        alarm.setStatus("ACTIVE");
+        this.save(alarm);
+
+        // WebSocket 推送新告警到前端
+        String deviceName = null;
+        Devices device = devicesMapper.selectById(deviceId);
+        if (device != null) {
+            deviceName = device.getDeviceName();
+        }
+
+        AlarmLogVO vo = toAlarmLogVO(alarm, deviceName);
+        WebSocketMessage msg = WebSocketMessage.builder()
+                .type("ALARM_CREATED")
+                .timestamp(LocalDateTime.now())
+                .data(vo)
+                .build();
+        messagingTemplate.convertAndSend("/topic/alarms", msg);
     }
 
     private Map<Long, String> buildDeviceNameMap(List<AlarmLogs> alarms) {
