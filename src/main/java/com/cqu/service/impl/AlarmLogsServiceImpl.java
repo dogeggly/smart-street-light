@@ -1,0 +1,138 @@
+package com.cqu.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cqu.entity.AlarmLogs;
+import com.cqu.entity.Devices;
+import com.cqu.mapper.AlarmLogsMapper;
+import com.cqu.mapper.DevicesMapper;
+import com.cqu.service.IAlarmLogsService;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cqu.vo.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * <p>
+ * 告警记录表 服务实现类
+ * </p>
+ *
+ * @author
+ * @since 2026-06-29
+ */
+@Service
+public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs> implements IAlarmLogsService {
+
+    @Autowired
+    private DevicesMapper devicesMapper;
+
+    @Override
+    public PageResult<AlarmLogVO> pageAlarms(int page, int pageSize, Long deviceId, String alarmType, String status) {
+        LambdaQueryWrapper<AlarmLogs> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(deviceId != null, AlarmLogs::getDeviceId, deviceId);
+        wrapper.eq(alarmType != null && !alarmType.isBlank(), AlarmLogs::getAlarmType, alarmType);
+        wrapper.eq(status != null && !status.isBlank(), AlarmLogs::getStatus, status);
+        wrapper.orderByDesc(AlarmLogs::getCreatedAt);
+
+        Page<AlarmLogs> pageResult = this.page(new Page<>(page, pageSize), wrapper);
+
+        // 批量获取设备名称
+        Map<Long, String> deviceNameMap = buildDeviceNameMap(pageResult.getRecords());
+
+        List<AlarmLogVO> records = pageResult.getRecords().stream()
+                .map(a -> toAlarmLogVO(a, deviceNameMap.get(a.getDeviceId())))
+                .collect(Collectors.toList());
+
+        return PageResult.of(pageResult.getTotal(), records);
+    }
+
+    @Override
+    public AlarmLogVO getAlarmDetail(Long id) {
+        AlarmLogs alarm = this.getById(id);
+        if (alarm == null) {
+            throw new RuntimeException("告警记录不存在");
+        }
+
+        String deviceName = null;
+        Devices device = devicesMapper.selectById(alarm.getDeviceId());
+        if (device != null) {
+            deviceName = device.getDeviceName();
+        }
+
+        return toAlarmLogVO(alarm, deviceName);
+    }
+
+    @Override
+    public void resolveAlarm(Long id) {
+        AlarmLogs alarm = this.getById(id);
+        if (alarm == null) {
+            throw new RuntimeException("告警记录不存在");
+        }
+        if (!"ACTIVE".equals(alarm.getStatus())) {
+            throw new RuntimeException("该告警已被处理");
+        }
+
+        alarm.setStatus("RESOLVED");
+        alarm.setResolvedAt(LocalDateTime.now());
+        this.updateById(alarm);
+    }
+
+    @Override
+    public AlarmStatisticsVO getStatistics() {
+        // 活跃告警总数
+        Long activeCount = this.lambdaQuery()
+                .eq(AlarmLogs::getStatus, "ACTIVE")
+                .count();
+
+        // 按类型分组统计
+        List<AlarmLogs> activeAlarms = this.lambdaQuery()
+                .eq(AlarmLogs::getStatus, "ACTIVE")
+                .list();
+
+        List<AlarmStatisticsVO.AlarmTypeCount> byType = activeAlarms.stream()
+                .collect(Collectors.groupingBy(AlarmLogs::getAlarmType, Collectors.counting()))
+                .entrySet().stream()
+                .map(e -> AlarmStatisticsVO.AlarmTypeCount.builder()
+                        .alarmType(e.getKey())
+                        .count(e.getValue())
+                        .build())
+                .collect(Collectors.toList());
+
+        return AlarmStatisticsVO.builder()
+                .activeCount(activeCount)
+                .byType(byType)
+                .build();
+    }
+
+    private Map<Long, String> buildDeviceNameMap(List<AlarmLogs> alarms) {
+        List<Long> deviceIds = alarms.stream()
+                .map(AlarmLogs::getDeviceId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (deviceIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return devicesMapper.selectBatchIds(deviceIds).stream()
+                .collect(Collectors.toMap(Devices::getId, Devices::getDeviceName));
+    }
+
+    private AlarmLogVO toAlarmLogVO(AlarmLogs alarm, String deviceName) {
+        return AlarmLogVO.builder()
+                .id(alarm.getId())
+                .deviceId(alarm.getDeviceId())
+                .deviceName(deviceName)
+                .alarmType(alarm.getAlarmType())
+                .message(alarm.getMessage())
+                .status(alarm.getStatus())
+                .createdAt(alarm.getCreatedAt())
+                .resolvedAt(alarm.getResolvedAt())
+                .build();
+    }
+}

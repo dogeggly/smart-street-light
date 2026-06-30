@@ -1,0 +1,24 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: smart-street-light
+  profiles:
+    include: secret  # 引入密码配置文件（application-secret.yml）
+  datasource:
+    url: jdbc:postgresql://192.168.100.131:5432/smart-street-light
+    username: postgres
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.cqu.entity # 别名扫描包
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.cqu:
+      mapper: debug
+      service: info
+      controller: info
