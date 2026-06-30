@@ -14,7 +14,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 @Slf4j
 @Component
-public class TokenInterceptor implements HandlerInterceptor {
+public class HttpAuthInterceptor implements HandlerInterceptor {
 
     @Autowired
     private JwtProperties jwtProperties;

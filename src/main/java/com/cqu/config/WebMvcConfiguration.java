@@ -11,11 +11,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebMvcConfiguration implements WebMvcConfigurer {
 
     @Autowired
-    private TokenInterceptor tokenInterceptor;
+    private HttpAuthInterceptor httpAuthInterceptor;
 
     public void addInterceptors(InterceptorRegistry registry) {
         log.info("开始注册自定义拦截器...");
-        registry.addInterceptor(tokenInterceptor)
+        registry.addInterceptor(httpAuthInterceptor)
                 // 调试时开启
                 // .excludePathPatterns("/**")
                 .addPathPatterns("/**")

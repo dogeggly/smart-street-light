@@ -528,6 +528,30 @@
 
 ---
 
+## 8. 大模型对话 — `/knowledge-chunks`
+
+### 8.1 大模型单轮对话
+
+| 项目 | 内容 |
+|------|------|
+| **URL** | `POST /knowledge-chunks/chat` |
+| **请求体** | `{"message": "string"}` |
+| **成功返回** | `{"code": 200, "errorMsg": null, "data": "string（大模型回复内容）"}` |
+
+| 请求字段 | 类型 | 必填 | 说明 |
+|----------|------|------|------|
+| message | string | 是 | 用户输入的问题/消息，不可为空 |
+
+| 配置项 (`application-secret.yml`) | 说明 | 示例 |
+|-----------------------------------|------|------|
+| `llm.api-key` | OpenAI 兼容 API Key | `sk-xxx` |
+| `llm.base-url` | API 地址 | `https://api.openai.com` |
+| `llm.model` | 模型名称 | `gpt-4o-mini` |
+
+**作用**：调用 OpenAI 兼容的大模型 API（`/v1/chat/completions`）进行单轮对话。当前版本无上下文记忆、无 RAG 检索，仅实现最简单的单轮调用。后续计划增加对话历史管理和知识库检索增强（RAG）。兼容 OpenAI、DeepSeek、通义千问等所有支持 Chat Completions 协议的 API。
+
+---
+
 ## 附录 A：通用分页返回结构
 
 ```json

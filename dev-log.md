@@ -332,3 +332,18 @@
 | **改动文件** | `schedule/HeartbeatCheckTask.java`（新增）, `SmartStreetLightApplication.java`（添加 `@EnableScheduling`） |
 | **说明** | 扫描所有 `onlineStatus=ONLINE` 的设备，若 `lastHeartbeatTime + heartbeatTimeout秒 < now`，则标记为 `OFFLINE`，自动创建 `OFFLINE` 类型告警，并通过 WebSocket 主题 `/topic/device-online` 推送 `DEVICE_ONLINE_STATUS_CHANGED`。从未收到心跳的设备也会被判定离线。 |
 
+---
+
+### 大模型对话 — `/knowledge-chunks`
+
+#### 34. 大模型单轮对话 — `POST /knowledge-chunks/chat`
+
+| 项目 | 内容 |
+|------|------|
+| **请求方式** | `POST` |
+| **请求路径** | `/knowledge-chunks/chat` |
+| **请求参数** | `{"message": "string"}` |
+| **返回数据** | `{"code": 200, "errorMsg": null, "data": "string（大模型回复内容）"}` |
+| **改动文件** | `KnowledgeChunksController.java`, `config/LlmConfig.java`（新增）, `vo/ChatRequest.java`（新增）, `application-secret.yml` |
+| **说明** | 调用 OpenAI 兼容的大模型 API 进行单轮对话。配置项在 `application-secret.yml` 的 `llm.*` 节点下（api-key / base-url / model）。使用 `RestTemplate` 发送 HTTP 请求，请求格式遵循 `/v1/chat/completions` 规范。当前版本无上下文记忆、无 RAG 检索，仅实现最简单的单轮调用。后续计划增加对话历史和知识库检索增强。 |
+

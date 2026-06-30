@@ -1,4 +1,4 @@
-package com.cqu.utils;
+package com.cqu.config;
 
 import com.pgvector.PGvector;
 import org.apache.ibatis.type.BaseTypeHandler;
