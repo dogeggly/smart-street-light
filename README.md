@@ -83,7 +83,7 @@
 │        │              │              │              │                         │
 └────────┼──────────────┼──────────────┼──────────────┼─────────────────────────┘
          │              │              │              │
-         │  ④ HTTP (当前) / MQTT (未来)               │
+         │                   ④ MQTT                   │
          │              │              │              │
          └──────────────┴──────────────┴──────────────┘
 ```
@@ -146,37 +146,22 @@ HeartbeatCheckTask (@Scheduled 30s) ──→ 扫描 ONLINE 设备
 
 ## 技术栈
 
-| 组件                            | 版本      | 用途                        |
-|-------------------------------|---------|---------------------------|
-| Spring Boot                   | 3.5.9   | Web 框架                    |
-| spring-boot-starter-websocket | —       | STOMP over WebSocket 实时推送 |
-| MyBatis-Plus                  | 3.5.15  | ORM + 分页                  |
-| PostgreSQL                    | —       | 主数据库（pgvector 扩展）         |
-| jjwt                          | 0.11.5  | JWT 认证                    |
-| Lombok                        | 1.18.40 | 代码简化                      |
-| Hutool                        | 5.8.40  | 工具库                       |
-| pgvector                      | 0.1.6   | 向量存储                      |
+| 组件                            | 版本            | 用途                        |
+|-------------------------------|---------------|---------------------------|
+| Spring Boot                   | 3.5.9         | Web 框架                    |
+| spring-boot-starter-websocket | —             | STOMP over WebSocket 实时推送 |
+| MyBatis-Plus                  | 3.5.15        | ORM + 分页                  |
+| PostgreSQL                    | pgvector:pg17 | 主数据库（pgvector 扩展）         |
+| jjwt                          | 0.11.5        | JWT 认证                    |
+| Lombok                        | 1.18.40       | 代码简化                      |
+| Hutool                        | 5.8.40        | 工具库                       |
+| pgvector                      | 0.1.6         | 向量存储                      |
 
 ## 快速开始
 
 ```bash
-# 1. 初始化数据库（PostgreSQL + pgvector）
-psql -h localhost -U postgres -d smart-street-light -f sql/schema.sql
-
-# 2. 创建敏感配置文件
-cat > src/main/resources/application-secret.yml << EOF
-spring:
-  datasource:
-    password: your_password
-jwt:
-  secret-key: your_secret_key
-EOF
-
-# 3. 启动应用
+启动应用
 mvn spring-boot:run
-
-# 4. 前端 WebSocket 连接
-# ws://localhost:8080/ws?token=<jwt_token>
 ```
 
 ## 项目文档
