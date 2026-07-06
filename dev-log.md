@@ -4,6 +4,62 @@
 
 ---
 
+## 2026-07-06
+
+### MQTT 通道 — 硬件接口迁移
+
+#### 39. MQTT 客户端集成（连接 Docker EMQX）
+
+| 项目 | 内容 |
+|------|------|
+| **改动文件** | `pom.xml`（新增 `org.eclipse.paho.client.mqttv3` 依赖），`config/MqttConfig.java`（新增），`application.yml`（新增 `mqtt.*` 配置项） |
+| **说明** | 基于 Eclipse Paho 客户端连接 Docker 部署的 EMQX Broker。`@PostConstruct` 时建立连接并订阅硬件上报 topic（`smart-light/+/status`、`smart-light/+/light`、`smart-light/+/alarm`），`@PreDestroy` 时断开。提供 `publishCommand(deviceSn, command)` 方法供 Service 层下发指令。配置项（`mqtt.broker-url`、`mqtt.client-id`、`mqtt.username`、`mqtt.password`）留 TODO 占位。 |
+
+#### 40. 2.4 状态回传 → MQTT `smart-light/{deviceSn}/status`
+
+| 项目 | 内容 |
+|------|------|
+| **MQTT Topic** | `smart-light/{deviceSn}/status`（QoS 0，硬件 → 服务端） |
+| **消息格式** | `{"deviceSn": "SN001", "status": "ON|OFF", "timestamp": "..."}` |
+| **改动文件** | `config/MqttConfig.java`（新增 `handleStatusCallback()` 路由） |
+| **说明** | 硬件通过 MQTT 发布状态回传消息，服务端通过 `deviceSn` 解析 `deviceId` 后调用 `DevicesServiceImpl.updateDeviceStatus()`，复用现有业务逻辑（更新状态 + 控制日志 + WebSocket 推送）。HTTP `POST /devices/status-callback` 保留作为降级通道。 |
+
+#### 41. 3.4 光照上报 → MQTT `smart-light/{deviceSn}/light`
+
+| 项目 | 内容 |
+|------|------|
+| **MQTT Topic** | `smart-light/{deviceSn}/light`（QoS 0，硬件 → 服务端） |
+| **消息格式** | `{"deviceSn": "SN001", "lightIntensity": 850.5, "timestamp": "..."}` |
+| **改动文件** | `config/MqttConfig.java`（新增 `handleLightReport()` 路由），`service/impl/LightReadingsServiceImpl.java`（注入 MqttConfig，自动开关指令通过 MQTT 下发） |
+| **说明** | 硬件通过 MQTT 发布光照数据，服务端调用 `reportReading()` 完成保存光照记录 + 隐式心跳刷新 + 阈值自动判定。自动开关指令（AUTO_ON/AUTO_OFF）通过 `smart-light/{deviceSn}/command`（QoS 1）下发给硬件。HTTP `POST /light-readings` 保留降级。 |
+
+#### 42. 4.5 创建告警 → MQTT `smart-light/{deviceSn}/alarm`
+
+| 项目 | 内容 |
+|------|------|
+| **MQTT Topic** | `smart-light/{deviceSn}/alarm`（QoS 1，硬件 → 服务端） |
+| **消息格式** | `{"deviceSn": "SN001", "alarmType": "LIGHT_ABNORMAL", "message": "...", "timestamp": "..."}` |
+| **改动文件** | `config/MqttConfig.java`（新增 `handleAlarmReport()` 路由） |
+| **说明** | 硬件通过 MQTT 发布告警消息，服务端通过 `deviceSn` 解析 `deviceId` 后调用 `AlarmLogsServiceImpl.createAlarm()`，复用现有业务逻辑（创建告警 + WebSocket 推送）。HTTP `POST /alarm-logs` 保留降级。 |
+
+#### 43. 开关指令下发 → MQTT `smart-light/{deviceSn}/command`
+
+| 项目 | 内容 |
+|------|------|
+| **MQTT Topic** | `smart-light/{deviceSn}/command`（QoS 1，服务端 → 硬件） |
+| **消息格式** | `{"command": "AUTO_ON|AUTO_OFF|MANUAL_ON|MANUAL_OFF", "timestamp": "..."}` |
+| **改动文件** | `service/impl/DevicesServiceImpl.java`（注入 MqttConfig，`switchDevice()` 中 publish），`service/impl/LightReadingsServiceImpl.java`（注入 MqttConfig，`reportReading()` 中 publish） |
+| **说明** | 自动开关（阈值判定触发）和手动开关（2.9 接口触发）均通过 MQTT 下发指令到硬件。HTTP 响应中同步返回 command 作为降级。 |
+
+#### 44. API 文档更新
+
+| 项目 | 内容 |
+|------|------|
+| **改动文件** | `API文档.md` |
+| **说明** | 新增"MQTT 通道"章节（Topic 一览表 + 消息格式）；2.4/3.4/4.5 接口标注 MQTT 为推荐方式、HTTP 为降级通道；2.5 心跳暂不迁移 MQTT；2.9 手动开关标注 MQTT 指令下发。 |
+
+---
+
 ## 2026-06-29
 
 ### 1. 用户注册

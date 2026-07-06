@@ -66,6 +66,13 @@
             <version>3.5.15</version>
         </dependency>
 
+        <!--mqtt (Eclipse Paho)-->
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>1.2.5</version>
+        </dependency>
+
         <!--hutool-->
         <dependency>
             <groupId>cn.hutool</groupId>

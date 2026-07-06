@@ -1,6 +1,8 @@
 # 智慧路灯管理平台 — API 接口文档
 
-- 2.4/2.5/3.4/4.5 接口为硬件/MQTT 网关调用，2.9/3.4 响应中携带 command 字段下发硬件指令，其他接口为前端调用
+- 2.4/3.4/4.5 接口**优先通过 MQTT 调用**（硬件直接发布到 EMQX topic），HTTP 接口保留作为降级通道
+- 2.9/3.4 产生的开关指令通过 MQTT 下发到硬件（`smart-light/{deviceSn}/command`）
+- 其他接口为前端调用
 
 ## 通用约定
 
@@ -11,6 +13,45 @@
 | **统一响应格式** | `{"code": 200, "errorMsg": null, "data": ...}` ，成功 code=200，失败 code=500  |
 | **分页参数**   | `page`（从1开始，默认1）、`pageSize`（默认10），返回 `{"total": long, "records": [...]}` |
 | **时间格式**   | `yyyy-MM-dd HH:mm:ss`（如 `2026-06-30 10:30:00`）                           |
+
+---
+
+## MQTT 通道（硬件通信）
+
+硬件侧接口优先通过 MQTT 与 EMQX Broker 通信，HTTP 作为降级通道保留。
+
+| 项目           | 说明                                           |
+|--------------|----------------------------------------------|
+| **Broker**   | Docker EMQX（地址见 `application.yml`）           |
+| **认证**       | username / password（见 `application.yml`）      |
+| **消息格式**     | JSON                                        |
+| **QoS**      | 数据上报 0（at most once），指令/告警 1（at least once） |
+
+### Topic 一览
+
+| Topic                              | 方向         | QoS | 对应接口     | 说明                    |
+|------------------------------------|------------|-----|----------|-----------------------|
+| `smart-light/{deviceSn}/status`    | 硬件 → 服务端 | 0   | 2.4 状态回传 | 硬件执行开关后回传最终状态        |
+| `smart-light/{deviceSn}/light`     | 硬件 → 服务端 | 0   | 3.4 光照上报 | 硬件上报光照强度，触发自动阈值判定    |
+| `smart-light/{deviceSn}/alarm`     | 硬件 → 服务端 | 1   | 4.5 创建告警 | 硬件上报异常告警             |
+| `smart-light/{deviceSn}/command`   | 服务端 → 硬件 | 1   | 2.9/3.4   | 服务端下发开关指令给硬件         |
+
+### 消息格式
+
+```json
+// → 2.4 状态回传: smart-light/{deviceSn}/status
+{"deviceSn": "SN001", "status": "ON", "timestamp": "2026-07-06 10:30:00"}
+
+// → 3.4 光照上报: smart-light/{deviceSn}/light
+{"deviceSn": "SN001", "lightIntensity": 850.5, "timestamp": "2026-07-06 10:30:00"}
+
+// → 4.5 告警上报: smart-light/{deviceSn}/alarm
+{"deviceSn": "SN001", "alarmType": "LIGHT_ABNORMAL", "message": "光照异常", "timestamp": "2026-07-06 10:30:00"}
+
+// ← 开关指令下发: smart-light/{deviceSn}/command
+{"command": "AUTO_ON", "timestamp": "2026-07-06 10:30:00"}
+// command 枚举: AUTO_ON / AUTO_OFF / MANUAL_ON / MANUAL_OFF
+```
 
 ---
 
@@ -137,9 +178,14 @@
 
 ### 2.4 硬件状态回传
 
+> **MQTT（推荐）**：硬件 → `smart-light/{deviceSn}/status`（QoS 0）
+> ```json
+> {"deviceSn": "SN001", "status": "ON", "timestamp": "2026-07-06 10:30:00"}
+> ```
+
 | 项目       | 内容                                       |
 |----------|------------------------------------------|
-| **URL**  | `POST /devices/status-callback`          |
+| **URL**  | `POST /devices/status-callback`（HTTP 降级通道） |
 | **请求体**  | `{"deviceId": long, "status": "string"}` |
 | **成功返回** | `{"code": 200, "data": "状态更新成功"}`        |
 
@@ -148,12 +194,18 @@
 | deviceId | long   | 是  | 设备ID              |
 | status   | string | 是  | 开关状态：`ON` / `OFF` |
 
+| MQTT 字段   | 类型     | 说明             |
+|-----------|--------|----------------|
+| deviceSn  | string | 设备序列号（替代 deviceId） |
+| status    | string | 开关状态           |
+| timestamp | string | 上报时间           |
+
 **作用**：硬件执行开关指令后回传最终状态，更新设备开关状态字段，自动记录控制日志（source=AUTO）。状态变更后通过 WebSocket 推送
 `DEVICE_STATUS_CHANGED`。
 
 ---
 
-### 2.5 设备心跳上报（备用）
+### 2.5 设备心跳上报（HTTP 备用通道，暂不迁移 MQTT）
 
 | 项目       | 内容                                             |
 |----------|------------------------------------------------|
@@ -170,7 +222,7 @@
 | command | string | 当前固定返回 `NONE`（后续手动控制时可能带回指令） |
 
 **作用**：硬件定期发送心跳信号（备用通道，光照上报已隐式刷新心跳），更新 `lastHeartbeatTime` 和在线状态。若设备此前离线，通过
-WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。响应中统一带回 `command` 字段，与光照上报接口保持一致。服务端另有
+WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。服务端另有
 `@Scheduled` 定时任务（每 30 秒）扫描超时设备自动标记离线并创建告警。
 
 ---
@@ -250,7 +302,7 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。响应中统一带回 `command
 | command | string | `MANUAL_ON` 或 `MANUAL_OFF`（硬件通知通道预留） |
 
 **作用**：前端管理员手动控制路灯开关。后端更新 `devices.status`，记录控制日志（source=MANUAL），通过 WebSocket
-推送 `DEVICE_STATUS_CHANGED`。**硬件通知通道预留**——当前 HTTP 响应中返回 command，后续 MQTT 接入后可直接推送至设备。
+推送 `DEVICE_STATUS_CHANGED`。开关指令通过 MQTT `smart-light/{deviceSn}/command`（QoS 1）下发至硬件，同时 HTTP 响应中返回 command 作为降级。
 
 ---
 
@@ -328,9 +380,18 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。响应中统一带回 `command
 
 ### 3.4 光照数据上报
 
+> **MQTT（推荐）**：硬件 → `smart-light/{deviceSn}/light`（QoS 0）
+> ```json
+> {"deviceSn": "SN001", "lightIntensity": 850.5, "timestamp": "2026-07-06 10:30:00"}
+> ```
+> 自动开关指令通过 `smart-light/{deviceSn}/command`（QoS 1）下发：
+> ```json
+> {"command": "AUTO_ON", "timestamp": "2026-07-06 10:30:00"}
+> ```
+
 | 项目       | 内容                                             |
 |----------|------------------------------------------------|
-| **URL**  | `POST /light-readings`                         |
+| **URL**  | `POST /light-readings`（HTTP 降级通道）               |
 | **请求体**  | `{"deviceId": long, "lightIntensity": number}` |
 | **成功返回** | `{"code": 200, "data": {"command": "string"}}` |
 
@@ -339,13 +400,19 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。响应中统一带回 `command
 | deviceId       | long   | 是  | 设备ID  |
 | lightIntensity | number | 是  | 光照强度值 |
 
+| MQTT 字段         | 类型     | 说明             |
+|-----------------|--------|----------------|
+| deviceSn        | string | 设备序列号（替代 deviceId） |
+| lightIntensity  | number | 光照强度值           |
+| timestamp       | string | 上报时间           |
+
 | 返回字段    | 类型     | 说明                                                               |
 |---------|--------|------------------------------------------------------------------|
-| command | string | 下发给硬件的开关指令：`AUTO_ON`（自动开灯）、`AUTO_OFF`（自动关灯）、`NONE`（无操作） |
+| command | string | 下发给硬件的开关指令：`AUTO_ON`（自动开灯）、`AUTO_OFF`（自动关灯）、`NONE`（无操作）。MQTT 通道时通过 `smart-light/{deviceSn}/command` 下发 |
 
 **作用**：接收硬件上报的光照数据，写入光照记录表。同时隐式刷新心跳（`onlineStatus=ONLINE` + `lastHeartbeatTime`）。写入后自动执行阈值判定——光照
-< 开灯阈值且当前 OFF → 自动开灯（AUTO_ON）；光照 > 关灯阈值且当前 ON → 自动关灯（AUTO_OFF）。判定结果作为 `command`
-通过HTTP响应返回给硬件，硬件根据command执行开关动作。若设备此前离线，额外通过 WebSocket `/topic/device-online` 推送上线通知。
+< 开灯阈值且当前 OFF → 自动开灯（AUTO_ON）；光照 > 关灯阈值且当前 ON → 自动关灯（AUTO_OFF）。判定结果通过 MQTT
+`smart-light/{deviceSn}/command`（或 HTTP 响应）返回给硬件。若设备此前离线，额外通过 WebSocket `/topic/device-online` 推送上线通知。
 
 ---
 
@@ -431,9 +498,14 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。响应中统一带回 `command
 
 ### 4.5 创建告警
 
+> **MQTT（推荐）**：硬件 → `smart-light/{deviceSn}/alarm`（QoS 1）
+> ```json
+> {"deviceSn": "SN001", "alarmType": "LIGHT_ABNORMAL", "message": "光照值持续为0", "timestamp": "2026-07-06 10:30:00"}
+> ```
+
 | 项目       | 内容                                                               |
 |----------|------------------------------------------------------------------|
-| **URL**  | `POST /alarm-logs`                                               |
+| **URL**  | `POST /alarm-logs`（HTTP 降级通道）                                     |
 | **请求体**  | `{"deviceId": long, "alarmType": "string", "message": "string"}` |
 | **成功返回** | `{"code": 200, "data": "创建成功"}`                                  |
 
@@ -442,6 +514,13 @@ WebSocket 推送 `DEVICE_ONLINE_STATUS_CHANGED`。响应中统一带回 `command
 | deviceId  | long   | 是  | 关联设备ID                             |
 | alarmType | string | 是  | 告警类型（如 `OFFLINE`、`LIGHT_ABNORMAL`） |
 | message   | string | 否  | 告警详情描述                             |
+
+| MQTT 字段    | 类型     | 说明             |
+|------------|--------|----------------|
+| deviceSn   | string | 设备序列号（替代 deviceId） |
+| alarmType  | string | 告警类型           |
+| message    | string | 告警详情           |
+| timestamp  | string | 上报时间           |
 
 **作用**：由硬件/系统调用，创建一条告警记录（status=ACTIVE）。创建成功后通过 WebSocket 推送 `ALARM_CREATED`。
 

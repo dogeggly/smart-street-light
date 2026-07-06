@@ -8,6 +8,7 @@ import com.cqu.entity.ThresholdConfig;
 import com.cqu.mapper.DevicesMapper;
 import com.cqu.mapper.LightReadingsMapper;
 import com.cqu.mapper.ThresholdConfigMapper;
+import com.cqu.config.MqttConfig;
 import com.cqu.service.IControlLogsService;
 import com.cqu.service.ILightReadingsService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -47,6 +48,9 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private MqttConfig mqttConfig;
 
     @Override
     public PageResult<LightReadingsVO> pageReadings(int page, int pageSize, Long deviceId, LocalDateTime startTime, LocalDateTime endTime) {
@@ -154,7 +158,14 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
         messagingTemplate.convertAndSend("/topic/light-readings", msg);
 
         // 光照阈值自动开关灯判定，返回下发给硬件的指令
-        return checkAndAutoControl(deviceId, lightIntensity);
+        String command = checkAndAutoControl(deviceId, lightIntensity);
+
+        // 通过 MQTT 下发自动开关指令给硬件
+        if (!"NONE".equals(command) && device != null) {
+            mqttConfig.publishCommand(device.getDeviceSn(), command);
+        }
+
+        return command;
     }
 
     /**

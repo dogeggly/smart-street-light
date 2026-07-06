@@ -22,3 +22,8 @@ logging:
       mapper: debug
       service: info
       controller: info
+
+# ==================== MQTT 配置（连接 Docker EMQX） ====================
+mqtt:
+  broker-url: tcp://192.168.100.131:1883
+  client-id: smart-light-server

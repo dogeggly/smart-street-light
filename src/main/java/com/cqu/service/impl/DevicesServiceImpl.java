@@ -8,6 +8,7 @@ import com.cqu.entity.LightReadings;
 import com.cqu.mapper.AlarmLogsMapper;
 import com.cqu.mapper.DevicesMapper;
 import com.cqu.mapper.LightReadingsMapper;
+import com.cqu.config.MqttConfig;
 import com.cqu.service.IControlLogsService;
 import com.cqu.service.IDevicesService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -45,6 +46,9 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private MqttConfig mqttConfig;
 
     @Override
     public PageResult<DeviceVO> pageDevices(int page, int pageSize, String deviceName, String status, String onlineStatus) {
@@ -278,7 +282,9 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                 .build();
         messagingTemplate.convertAndSend("/topic/device-status", msg);
 
-        // TODO: 通知硬件执行开关（MQTT/HTTP 通道预留）
+        // 通过 MQTT 下发开关指令给硬件
+        mqttConfig.publishCommand(device.getDeviceSn(), command);
+
         return command;
     }
 
