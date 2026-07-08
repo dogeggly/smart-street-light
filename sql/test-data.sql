@@ -46,7 +46,7 @@ INSERT INTO devices (device_name, device_sn, status, online_status, last_heartbe
     ('中山路002号路灯', 'SN-ZS-002', 'ON',  'OFFLINE', CURRENT_TIMESTAMP - INTERVAL '120 seconds', CURRENT_TIMESTAMP - INTERVAL '15 days'); -- 心跳2分钟前，已离线但灯卡在ON状态
 
 -- ============================================================
--- 3. 光照记录表（32 条，覆盖最近 6 小时 + 少量历史）
+-- 3. 光照记录表（33 条，覆盖最近 6 小时 + 少量历史）
 --   强度范围: 低光照(<30 应触发开灯) / 正常(30-80) / 高光照(>80 应触发关灯)
 -- ============================================================
 INSERT INTO light_readings (device_id, light_intensity, created_at) VALUES
