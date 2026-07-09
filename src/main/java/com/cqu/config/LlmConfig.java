@@ -23,6 +23,12 @@ public class LlmConfig {
     /** 模型名称（如 gpt-4o-mini, deepseek-chat 等） */
     private String model;
 
+    /** Embedding 模型名称（如 bge-large-zh-v1.5, text-embedding-3-small 等） */
+    private String embeddingModel;
+
+    /** RAG 检索返回的相似文档数量 */
+    private int topK = 3;
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();

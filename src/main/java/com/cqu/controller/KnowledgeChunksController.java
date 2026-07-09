@@ -1,21 +1,15 @@
 package com.cqu.controller;
 
-import com.cqu.config.LlmConfig;
+import com.cqu.service.IRagService;
 import com.cqu.vo.ChatRequest;
+import com.cqu.vo.KnowledgeImportRequest;
 import com.cqu.vo.Result;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * <p>
@@ -25,51 +19,55 @@ import java.util.Map;
  * @author
  * @since 2026-06-29
  */
+@Slf4j
 @RestController
 @RequestMapping("/knowledge-chunks")
 @RequiredArgsConstructor
 public class KnowledgeChunksController {
 
-    private final LlmConfig llmConfig;
-    private final RestTemplate restTemplate;
+    private final IRagService ragService;
 
     /**
-     * 大模型单轮对话（无上下文，无 RAG 检索）
+     * RAG 问答接口：检索知识库 + 大模型生成回答
      */
-    @PostMapping("/chat")
-    public Result<String> chat(@RequestBody ChatRequest request) {
-        // 参数校验
+    @PostMapping("/rag")
+    public Result<String> rag(@RequestBody ChatRequest request) {
         if (request.getMessage() == null || request.getMessage().isBlank()) {
             return Result.fail("消息不能为空");
         }
+        try {
+            String answer = ragService.ask(request.getMessage());
+            return Result.success(answer);
+        } catch (Exception e) {
+            log.error("RAG 问答失败：{}", e.getMessage(), e);
+            return Result.fail("问答服务异常：" + e.getMessage());
+        }
+    }
 
-        // 构造请求头
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(llmConfig.getApiKey());
-
-        // 构造请求体（OpenAI Chat Completions 格式）
-        Map<String, Object> body = Map.of(
-                "model", llmConfig.getModel(),
-                "messages", List.of(
-                        Map.of("role", "user", "content", request.getMessage())
-                )
-        );
-
-        // 调用大模型 API
-        String url = llmConfig.getBaseUrl() + "/v1/chat/completions";
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                url,
-                new HttpEntity<>(body, headers),
-                Map.class
-        );
-
-        // 解析返回内容
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
-        Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-        String content = (String) message.get("content");
-
-        return Result.success(content);
+    /**
+     * 批量导入知识文档（自动生成 embedding 向量并存储到知识库）
+     * <p>
+     * 使用示例：
+     * <pre>
+     * {
+     *   "documents": [
+     *     { "title": "路灯维护手册", "content": "路灯定期检查应包括..." },
+     *     { "title": "故障排查指南", "content": "当路灯不亮时，首先检查..." }
+     *   ]
+     * }
+     * </pre>
+     */
+    @PostMapping("/import")
+    public Result<Integer> importDocuments(@RequestBody KnowledgeImportRequest request) {
+        if (request.getDocuments() == null || request.getDocuments().isEmpty()) {
+            return Result.fail("文档列表不能为空");
+        }
+        try {
+            int count = ragService.importDocuments(request);
+            return Result.success(count);
+        } catch (Exception e) {
+            log.error("导入知识文档失败：{}", e.getMessage(), e);
+            return Result.fail("导入失败：" + e.getMessage());
+        }
     }
 }
