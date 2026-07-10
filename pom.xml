@@ -17,7 +17,7 @@
     <description>smart-street-light</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>24</java.version>
     </properties>
 
     <dependencies>

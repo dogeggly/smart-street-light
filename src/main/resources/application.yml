@@ -7,7 +7,7 @@ spring:
   profiles:
     include: secret  # 引入密码配置文件（application-secret.yml）
   datasource:
-    url: jdbc:postgresql://192.168.100.131:5432/smart-street-light
+    url: jdbc:postgresql://db.fsjrxfjxywelkzumotrg.supabase.co:5432/postgres
     username: postgres
 
 mybatis-plus:

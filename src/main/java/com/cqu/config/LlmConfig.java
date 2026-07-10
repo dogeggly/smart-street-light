@@ -23,7 +23,13 @@ public class LlmConfig {
     /** 模型名称（如 gpt-4o-mini, deepseek-chat 等） */
     private String model;
 
-    /** Embedding 模型名称（如 bge-large-zh-v1.5, text-embedding-3-small 等） */
+    /** Embedding API Key（如使用 Jina AI） */
+    private String embeddingApiKey;
+
+    /** Embedding API 地址（如 https://api.jina.ai/v1） */
+    private String embeddingBaseUrl;
+
+    /** Embedding 模型名称（如 jina-embeddings-v2-base-zh） */
     private String embeddingModel;
 
     /** RAG 检索返回的相似文档数量 */
