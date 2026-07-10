@@ -52,7 +52,7 @@ public class UsersController {
         // 构造返回数据
         LoginVO loginVO = LoginVO.builder()
                 .token(token)
-                .userId(loginUser.getId())
+                .userId(String.valueOf(loginUser.getId()))
                 .username(loginUser.getUsername())
                 .role(loginUser.getRole())
                 .build();

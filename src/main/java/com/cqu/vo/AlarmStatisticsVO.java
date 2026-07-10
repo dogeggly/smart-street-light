@@ -16,7 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 public class AlarmStatisticsVO {
 
-    private Long activeCount;
+    private String activeCount;
 
     private List<AlarmTypeCount> byType;
 
@@ -26,6 +26,6 @@ public class AlarmStatisticsVO {
     @AllArgsConstructor
     public static class AlarmTypeCount {
         private String alarmType;
-        private Long count;
+        private String count;
     }
 }

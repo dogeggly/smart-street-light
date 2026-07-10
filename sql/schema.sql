@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS control_logs
     id          BIGSERIAL PRIMARY KEY,
     device_id   BIGINT      NOT NULL,
     operator_id BIGINT,                                  -- 手动操作人（AUTO时为NULL）
-    command     VARCHAR(8)  NOT NULL DEFAULT 'OFF',     -- ON | OFF
+    command     VARCHAR(16)  NOT NULL DEFAULT 'OFF',     -- ON | OFF
     source      VARCHAR(16) NOT NULL DEFAULT 'MANUAL',  -- AUTO | MANUAL
     result      VARCHAR(16) NOT NULL DEFAULT 'SUCCESS', -- SUCCESS | FAIL
     created_at  TIMESTAMP   NOT NULL DEFAULT now()

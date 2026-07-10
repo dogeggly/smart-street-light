@@ -7,7 +7,7 @@ spring:
   profiles:
     include: secret  # 引入密码配置文件（application-secret.yml）
   datasource:
-    url: jdbc:postgresql://db.fsjrxfjxywelkzumotrg.supabase.co:5432/postgres
+    url: jdbc:postgresql://10.59.47.188:5432/smart-street-light
     username: postgres
 
 mybatis-plus:
@@ -20,10 +20,11 @@ logging:
   level:
     com.cqu:
       mapper: debug
+      mapper.DevicesMapper: warn
       service: info
       controller: info
 
 # ==================== MQTT 配置（连接 Docker EMQX） ====================
 mqtt:
-  broker-url: tcp://192.168.100.131:1883
+  broker-url: tcp://10.59.47.188:1883
   client-id: smart-light-server

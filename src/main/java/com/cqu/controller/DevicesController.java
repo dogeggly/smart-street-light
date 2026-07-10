@@ -38,9 +38,9 @@ public class DevicesController {
      * 设备详情
      */
     @GetMapping("/{id}")
-    public Result<DeviceDetailVO> detail(@PathVariable Long id) {
+    public Result<DeviceDetailVO> detail(@PathVariable String id) {
         log.info("查询设备详情: id={}", id);
-        DeviceDetailVO detail = devicesService.getDeviceDetail(id);
+        DeviceDetailVO detail = devicesService.getDeviceDetail(Long.valueOf(id));
         return Result.success(detail);
     }
 
@@ -60,10 +60,10 @@ public class DevicesController {
      * 编辑设备
      */
     @PutMapping("/{id}")
-    public Result<String> update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public Result<String> update(@PathVariable String id, @RequestBody Map<String, Object> body) {
         String deviceName = (String) body.get("deviceName");
         log.info("编辑设备: id={}, deviceName={}", id, deviceName);
-        devicesService.updateDevice(id, deviceName);
+        devicesService.updateDevice(Long.valueOf(id), deviceName);
         return Result.success("修改成功");
     }
 
@@ -71,9 +71,9 @@ public class DevicesController {
      * 删除设备
      */
     @DeleteMapping("/{id}")
-    public Result<String> delete(@PathVariable Long id) {
+    public Result<String> delete(@PathVariable String id) {
         log.info("删除设备: id={}", id);
-        devicesService.deleteDevice(id);
+        devicesService.deleteDevice(Long.valueOf(id));
         return Result.success("删除成功");
     }
 
@@ -119,10 +119,10 @@ public class DevicesController {
      * 手动开关灯控制（前端下发 → 后端更新状态 → 预留硬件通知通道）
      */
     @PostMapping("/{id}/switch")
-    public Result<Map<String, String>> switchDevice(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public Result<Map<String, String>> switchDevice(@PathVariable String id, @RequestBody Map<String, Object> body) {
         String status = (String) body.get("status");
         log.info("手动开关灯: deviceId={}, status={}", id, status);
-        String command = devicesService.switchDevice(id, status);
+        String command = devicesService.switchDevice(Long.valueOf(id), status);
 
         Map<String, String> response = new LinkedHashMap<>();
         response.put("command", command);

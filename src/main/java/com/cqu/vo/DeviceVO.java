@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class DeviceVO {
 
-    private Long id;
+    private String id;
     private String deviceName;
     private String deviceSn;
     private String status;

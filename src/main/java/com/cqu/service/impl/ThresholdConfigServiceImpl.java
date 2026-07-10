@@ -37,7 +37,7 @@ public class ThresholdConfigServiceImpl extends ServiceImpl<ThresholdConfigMappe
         }
 
         return ThresholdConfigVO.builder()
-                .id(config.getId())
+                .id(String.valueOf(config.getId()))
                 .lightThresholdOn(config.getLightThresholdOn())
                 .lightThresholdOff(config.getLightThresholdOff())
                 .heartbeatTimeout(config.getHeartbeatTimeout())

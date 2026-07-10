@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class LightReadingsVO {
 
-    private Long id;
-    private Long deviceId;
+    private String id;
+    private String deviceId;
     private String deviceName;
     private BigDecimal lightIntensity;
     private LocalDateTime createdAt;

@@ -24,12 +24,13 @@ public class AlarmLogsController {
     public Result<PageResult<AlarmLogVO>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) Long deviceId,
+            @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String alarmType,
             @RequestParam(required = false) String status) {
         log.info("查询告警列表: page={}, pageSize={}, deviceId={}, alarmType={}, status={}",
                 page, pageSize, deviceId, alarmType, status);
-        PageResult<AlarmLogVO> result = alarmLogsService.pageAlarms(page, pageSize, deviceId, alarmType, status);
+        PageResult<AlarmLogVO> result = alarmLogsService.pageAlarms(page, pageSize,
+                deviceId != null ? Long.valueOf(deviceId) : null, alarmType, status);
         return Result.success(result);
     }
 
@@ -37,9 +38,9 @@ public class AlarmLogsController {
      * 告警详情
      */
     @GetMapping("/{id}")
-    public Result<AlarmLogVO> detail(@PathVariable Long id) {
+    public Result<AlarmLogVO> detail(@PathVariable String id) {
         log.info("查询告警详情: id={}", id);
-        AlarmLogVO detail = alarmLogsService.getAlarmDetail(id);
+        AlarmLogVO detail = alarmLogsService.getAlarmDetail(Long.valueOf(id));
         return Result.success(detail);
     }
 
@@ -47,9 +48,9 @@ public class AlarmLogsController {
      * 解决告警
      */
     @PutMapping("/{id}/resolve")
-    public Result<String> resolve(@PathVariable Long id) {
+    public Result<String> resolve(@PathVariable String id) {
         log.info("解决告警: id={}", id);
-        alarmLogsService.resolveAlarm(id);
+        alarmLogsService.resolveAlarm(Long.valueOf(id));
         return Result.success("处理成功");
     }
 

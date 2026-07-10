@@ -132,10 +132,10 @@ public class ControlLogsServiceImpl extends ServiceImpl<ControlLogsMapper, Contr
 
     private ControlLogVO toControlLogVO(ControlLogs log, String deviceName, String operatorName) {
         return ControlLogVO.builder()
-                .id(log.getId())
-                .deviceId(log.getDeviceId())
+                .id(String.valueOf(log.getId()))
+                .deviceId(String.valueOf(log.getDeviceId()))
                 .deviceName(deviceName)
-                .operatorId(log.getOperatorId())
+                .operatorId(String.valueOf(log.getOperatorId()))
                 .operatorName(operatorName)
                 .command(log.getCommand())
                 .source(log.getSource())

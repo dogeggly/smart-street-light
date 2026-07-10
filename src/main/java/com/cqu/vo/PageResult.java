@@ -15,12 +15,12 @@ import java.util.List;
 public class PageResult<T> {
 
     /** 总记录数 */
-    private Long total;
+    private String total;
 
     /** 当前页数据 */
     private List<T> records;
 
     public static <T> PageResult<T> of(Long total, List<T> records) {
-        return new PageResult<>(total, records);
+        return new PageResult<>(String.valueOf(total), records);
     }
 }

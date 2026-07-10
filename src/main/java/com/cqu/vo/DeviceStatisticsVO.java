@@ -14,9 +14,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DeviceStatisticsVO {
 
-    private Long totalCount;
-    private Long onlineCount;
-    private Long offlineCount;
-    private Long onCount;
-    private Long offCount;
+    private String totalCount;
+    private String onlineCount;
+    private String offlineCount;
+    private String onCount;
+    private String offCount;
 }

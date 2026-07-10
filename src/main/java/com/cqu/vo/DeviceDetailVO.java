@@ -17,13 +17,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class DeviceDetailVO {
 
-    private Long id;
+    private String id;
     private String deviceName;
     private String deviceSn;
     private String status;
     private String onlineStatus;
     private LocalDateTime lastHeartbeatTime;
     private BigDecimal latestLightIntensity;
-    private Long activeAlarmCount;
+    private String activeAlarmCount;
     private LocalDateTime createdAt;
 }

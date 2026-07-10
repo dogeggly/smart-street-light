@@ -85,7 +85,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
         }
 
         return LatestLightVO.builder()
-                .deviceId(reading.getDeviceId())
+                .deviceId(String.valueOf(reading.getDeviceId()))
                 .lightIntensity(reading.getLightIntensity())
                 .createdAt(reading.getCreatedAt())
                 .build();
@@ -146,7 +146,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
 
         // WebSocket 推送光照数据到前端
         LatestLightVO vo = LatestLightVO.builder()
-                .deviceId(reading.getDeviceId())
+                .deviceId(String.valueOf(reading.getDeviceId()))
                 .lightIntensity(reading.getLightIntensity())
                 .createdAt(reading.getCreatedAt())
                 .build();
@@ -254,8 +254,8 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
 
     private LightReadingsVO toLightReadingsVO(LightReadings reading, String deviceName) {
         return LightReadingsVO.builder()
-                .id(reading.getId())
-                .deviceId(reading.getDeviceId())
+                .id(String.valueOf(reading.getId()))
+                .deviceId(String.valueOf(reading.getDeviceId()))
                 .deviceName(deviceName)
                 .lightIntensity(reading.getLightIntensity())
                 .createdAt(reading.getCreatedAt())

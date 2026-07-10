@@ -16,10 +16,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ControlLogVO {
 
-    private Long id;
-    private Long deviceId;
+    private String id;
+    private String deviceId;
     private String deviceName;
-    private Long operatorId;
+    private String operatorId;
     private String operatorName;
     private String command;
     private String source;

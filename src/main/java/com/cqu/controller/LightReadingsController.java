@@ -31,7 +31,7 @@ public class LightReadingsController {
     public Result<PageResult<LightReadingsVO>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) Long deviceId,
+            @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime) {
         log.info("查询光照记录: page={}, pageSize={}, deviceId={}, startTime={}, endTime={}",
@@ -40,7 +40,8 @@ public class LightReadingsController {
         LocalDateTime start = parseTime(startTime);
         LocalDateTime end = parseTime(endTime);
 
-        PageResult<LightReadingsVO> result = lightReadingsService.pageReadings(page, pageSize, deviceId, start, end);
+        Long deviceIdLong = deviceId != null ? Long.valueOf(deviceId) : null;
+        PageResult<LightReadingsVO> result = lightReadingsService.pageReadings(page, pageSize, deviceIdLong, start, end);
         return Result.success(result);
     }
 
@@ -48,9 +49,9 @@ public class LightReadingsController {
      * 设备最新光照
      */
     @GetMapping("/latest/{deviceId}")
-    public Result<LatestLightVO> latest(@PathVariable Long deviceId) {
+    public Result<LatestLightVO> latest(@PathVariable String deviceId) {
         log.info("查询设备最新光照: deviceId={}", deviceId);
-        LatestLightVO latest = lightReadingsService.getLatestLight(deviceId);
+        LatestLightVO latest = lightReadingsService.getLatestLight(Long.valueOf(deviceId));
         return Result.success(latest);
     }
 
@@ -59,15 +60,15 @@ public class LightReadingsController {
      */
     @GetMapping("/trend")
     public Result<List<TrendPointVO>> trend(
-            @RequestParam Long deviceId,
+            @RequestParam String deviceId,
             @RequestParam String startTime,
             @RequestParam String endTime) {
         log.info("查询光照趋势: deviceId={}, startTime={}, endTime={}", deviceId, startTime, endTime);
 
-        LocalDateTime start = LocalDateTime.parse(startTime, FORMATTER);
-        LocalDateTime end = LocalDateTime.parse(endTime, FORMATTER);
+        LocalDateTime start = parseTime(startTime);
+        LocalDateTime end = parseTime(endTime);
 
-        List<TrendPointVO> trend = lightReadingsService.getTrend(deviceId, start, end);
+        List<TrendPointVO> trend = lightReadingsService.getTrend(Long.valueOf(deviceId), start, end);
         return Result.success(trend);
     }
 
@@ -92,6 +93,13 @@ public class LightReadingsController {
         if (timeStr == null || timeStr.isBlank()) {
             return null;
         }
-        return LocalDateTime.parse(timeStr, FORMATTER);
+        // 兼容 ISO 8601 格式（如 2026-07-09T08:03:28.810）和空格分隔格式
+        String normalized = timeStr.trim().replace("T", " ");
+        // 截掉毫秒部分（.xxx）
+        int dotIdx = normalized.indexOf(".");
+        if (dotIdx > 0) {
+            normalized = normalized.substring(0, dotIdx);
+        }
+        return LocalDateTime.parse(normalized, FORMATTER);
     }
 }

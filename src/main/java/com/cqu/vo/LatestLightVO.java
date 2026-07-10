@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class LatestLightVO {
 
-    private Long deviceId;
+    private String deviceId;
     private BigDecimal lightIntensity;
     private LocalDateTime createdAt;
 }

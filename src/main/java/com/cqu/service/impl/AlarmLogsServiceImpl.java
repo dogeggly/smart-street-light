@@ -108,12 +108,12 @@ public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs
                 .entrySet().stream()
                 .map(e -> AlarmStatisticsVO.AlarmTypeCount.builder()
                         .alarmType(e.getKey())
-                        .count(e.getValue())
+                        .count(String.valueOf(e.getValue()))
                         .build())
                 .collect(Collectors.toList());
 
         return AlarmStatisticsVO.builder()
-                .activeCount(activeCount)
+                .activeCount(String.valueOf(activeCount))
                 .byType(byType)
                 .build();
     }
@@ -163,8 +163,8 @@ public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs
 
     private AlarmLogVO toAlarmLogVO(AlarmLogs alarm, String deviceName) {
         return AlarmLogVO.builder()
-                .id(alarm.getId())
-                .deviceId(alarm.getDeviceId())
+                .id(String.valueOf(alarm.getId()))
+                .deviceId(String.valueOf(alarm.getDeviceId()))
                 .deviceName(deviceName)
                 .alarmType(alarm.getAlarmType())
                 .message(alarm.getMessage())

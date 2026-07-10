@@ -88,14 +88,14 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         Long activeAlarmCount = alarmLogsMapper.selectCount(alarmWrapper);
 
         return DeviceDetailVO.builder()
-                .id(device.getId())
+                .id(String.valueOf(device.getId()))
                 .deviceName(device.getDeviceName())
                 .deviceSn(device.getDeviceSn())
                 .status(device.getStatus())
                 .onlineStatus(device.getOnlineStatus())
                 .lastHeartbeatTime(device.getLastHeartbeatTime())
                 .latestLightIntensity(latestLight != null ? latestLight.getLightIntensity() : null)
-                .activeAlarmCount(activeAlarmCount)
+                .activeAlarmCount(String.valueOf(activeAlarmCount))
                 .createdAt(device.getCreatedAt())
                 .build();
     }
@@ -169,11 +169,11 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
         Long offCount = this.lambdaQuery().eq(Devices::getStatus, "OFF").count();
 
         return DeviceStatisticsVO.builder()
-                .totalCount(totalCount)
-                .onlineCount(onlineCount)
-                .offlineCount(offlineCount)
-                .onCount(onCount)
-                .offCount(offCount)
+                .totalCount(String.valueOf(totalCount))
+                .onlineCount(String.valueOf(onlineCount))
+                .offlineCount(String.valueOf(offlineCount))
+                .onCount(String.valueOf(onCount))
+                .offCount(String.valueOf(offCount))
                 .build();
     }
 
@@ -290,7 +290,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
 
     private DeviceVO toDeviceVO(Devices device) {
         return DeviceVO.builder()
-                .id(device.getId())
+                .id(String.valueOf(device.getId()))
                 .deviceName(device.getDeviceName())
                 .deviceSn(device.getDeviceSn())
                 .status(device.getStatus())

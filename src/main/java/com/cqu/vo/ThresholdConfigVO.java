@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ThresholdConfigVO {
 
-    private Long id;
+    private String id;
     private BigDecimal lightThresholdOn;
     private BigDecimal lightThresholdOff;
     private Integer heartbeatTimeout;

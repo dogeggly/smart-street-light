@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LoginVO {
     private String token;
-    private Long userId;
+    private String userId;
     private String username;
     private String role;
 }

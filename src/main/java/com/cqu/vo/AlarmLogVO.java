@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class AlarmLogVO {
 
-    private Long id;
-    private Long deviceId;
+    private String id;
+    private String deviceId;
     private String deviceName;
     private String alarmType;
     private String message;

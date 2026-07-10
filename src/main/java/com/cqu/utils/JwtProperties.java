@@ -16,7 +16,7 @@ public class JwtProperties {
     @Value("${jwt.secret-key}")
     private String jwtSecretKey;
 
-    private static final long ACCESS_EXPIRATION_TIME = 15 * 60 * 1000L; // 15分钟
+    private static final long ACCESS_EXPIRATION_TIME = 15 * 60 * 60 * 1000L; // 15小时
 
     public String createAccessToken(Map<String, Object> claims) {
 
