@@ -13,6 +13,7 @@ import com.cqu.service.IControlLogsService;
 import com.cqu.service.IDevicesService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cqu.vo.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
  * @author
  * @since 2026-06-29
  */
+@Slf4j
 @Service
 public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> implements IDevicesService {
 
@@ -209,6 +211,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                 .timestamp(LocalDateTime.now())
                 .data(data)
                 .build();
+        log.info("WebSocket 推送 → /topic/device-status: 设备 {} ({}) 硬件回传状态 {} → {}", deviceId, device.getDeviceName(), oldStatus, status);
         messagingTemplate.convertAndSend("/topic/device-status", msg);
     }
 
@@ -243,6 +246,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                     .timestamp(LocalDateTime.now())
                     .data(data)
                     .build();
+            log.info("WebSocket 推送 → /topic/device-online: 设备 {} ({}) 上线（心跳恢复触发）", deviceId, device.getDeviceName());
             messagingTemplate.convertAndSend("/topic/device-online", msg);
         }
     }
@@ -280,6 +284,7 @@ public class DevicesServiceImpl extends ServiceImpl<DevicesMapper, Devices> impl
                 .timestamp(LocalDateTime.now())
                 .data(data)
                 .build();
+        log.info("WebSocket 推送 → /topic/device-status: 设备 {} ({}) 手动开关 {} → {}", deviceId, device.getDeviceName(), oldStatus, status);
         messagingTemplate.convertAndSend("/topic/device-status", msg);
 
         // 通过 MQTT 下发开关指令给硬件

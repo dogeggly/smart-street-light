@@ -38,7 +38,9 @@ public class HeartbeatCheckTask {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    /** 每 30 秒扫描一次 */
+    /**
+     * 每 30 秒扫描一次
+     */
     @Scheduled(fixedRate = 30_000)
     public void checkHeartbeat() {
         // 获取心跳超时配置
@@ -63,7 +65,7 @@ public class HeartbeatCheckTask {
 
                 // 创建离线告警
                 alarmLogsService.createAlarm(device.getId(), "OFFLINE",
-                        "设备心跳超时（" + timeoutSeconds + "秒未收到心跳），已自动标记离线");
+                        "设备心跳超时，已自动标记离线");
 
                 log.info("心跳超时: 设备 {} ({}) 已标记离线", device.getId(), device.getDeviceName());
 
@@ -78,6 +80,7 @@ public class HeartbeatCheckTask {
                         .timestamp(LocalDateTime.now())
                         .data(data)
                         .build();
+                log.info("WebSocket 推送 → /topic/device-online: 设备 {} ({}) 离线（心跳超时 {}秒）", device.getId(), device.getDeviceName(), timeoutSeconds);
                 messagingTemplate.convertAndSend("/topic/device-online", msg);
             }
         }

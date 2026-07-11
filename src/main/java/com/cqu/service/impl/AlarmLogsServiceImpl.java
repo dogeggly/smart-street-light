@@ -10,6 +10,7 @@ import com.cqu.service.IAlarmLogsService;
 import com.cqu.service.IControlLogsService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cqu.vo.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  * @author
  * @since 2026-06-29
  */
+@Slf4j
 @Service
 public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs> implements IAlarmLogsService {
 
@@ -144,6 +146,7 @@ public class AlarmLogsServiceImpl extends ServiceImpl<AlarmLogsMapper, AlarmLogs
                 .timestamp(LocalDateTime.now())
                 .data(vo)
                 .build();
+        log.info("WebSocket 推送 → /topic/alarms: 设备 {} ({}) 告警类型={} 内容={}", deviceId, deviceName, alarmType, message);
         messagingTemplate.convertAndSend("/topic/alarms", msg);
     }
 

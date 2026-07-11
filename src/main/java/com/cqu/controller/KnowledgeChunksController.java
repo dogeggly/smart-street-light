@@ -45,6 +45,14 @@ public class KnowledgeChunksController {
     }
 
     /**
+     * AI 聊天接口（同 RAG 问答）
+     */
+    @PostMapping("/chat")
+    public Result<String> chat(@RequestBody ChatRequest request) {
+        return rag(request);
+    }
+
+    /**
      * 批量导入知识文档（自动生成 embedding 向量并存储到知识库）
      * <p>
      * 使用示例：

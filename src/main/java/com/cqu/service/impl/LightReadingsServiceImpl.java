@@ -135,6 +135,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
                         .timestamp(LocalDateTime.now())
                         .data(onlineData)
                         .build();
+                log.info("WebSocket 推送 → /topic/device-online: 设备 {} ({}) 上线（光照上报触发）", deviceId, device.getDeviceName());
                 messagingTemplate.convertAndSend("/topic/device-online", onlineMsg);
             }
         }
@@ -155,6 +156,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
                 .timestamp(LocalDateTime.now())
                 .data(vo)
                 .build();
+        log.info("WebSocket 推送 → /topic/light-readings: 设备 {} 光照值={}", deviceId, lightIntensity);
         messagingTemplate.convertAndSend("/topic/light-readings", msg);
 
         // 光照阈值自动开关灯判定，返回下发给硬件的指令
@@ -230,6 +232,7 @@ public class LightReadingsServiceImpl extends ServiceImpl<LightReadingsMapper, L
                 .timestamp(LocalDateTime.now())
                 .data(data)
                 .build();
+        log.info("WebSocket 推送 → /topic/device-status: 设备 {} ({}) 自动开关 {} → {}", deviceId, device.getDeviceName(), oldStatus, targetStatus);
         messagingTemplate.convertAndSend("/topic/device-status", msg);
 
         return command;
